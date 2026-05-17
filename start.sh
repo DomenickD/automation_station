@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
-# start.sh — local dev launcher for Automation Station
-#
-# Reads ENV from api/.env to decide which LLM backend to use:
-#   ENV=development  →  spins up Ollama in Docker, pulls gemma4:e4b, uses it as LLM mock
-#   ENV=production   →  uses Anthropic Claude API (ANTHROPIC_API_KEY must be set)
+# Local launcher for Automation Station.
 #
 # Usage:
-#   bash start.sh          # auto-detects mode from api/.env
+#   bash start.sh          # uses ENV from api/.env, defaults to development
 #   bash start.sh --dev    # force development mode
 #   bash start.sh --prod   # force production mode
+#
+# Development mode: all services run in Docker Compose containers.
+#   Migrations and seeding run inside the api container on startup.
+#   Code changes hot-reload in both api and web containers.
 
-set -e
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 API_DIR="$ROOT/api"
 WEB_DIR="$ROOT/web"
 
-# ── Colors ───────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
@@ -24,206 +23,165 @@ RED='\033[0;31m'
 MAGENTA='\033[0;35m'
 NC='\033[0m'
 
-echo ""
-echo -e "${CYAN}╔══════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║     Automation Station — Start       ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
-echo ""
+read_env_value() {
+  local file="$1"
+  local key="$2"
+  { grep -E "^${key}=" "$file" 2>/dev/null || true; } | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d ' '
+}
 
-# ── Check .env files ─────────────────────────────────────────
-if [ ! -f "$API_DIR/.env" ]; then
-  echo -e "${YELLOW}⚠  api/.env not found — copying from .env.example${NC}"
-  cp "$API_DIR/.env.example" "$API_DIR/.env"
-  echo -e "${RED}   → Edit api/.env before continuing.${NC}"
-fi
-
-if [ ! -f "$WEB_DIR/.env" ]; then
-  echo -e "${YELLOW}⚠  web/.env not found — copying from .env.example${NC}"
-  cp "$WEB_DIR/.env.example" "$WEB_DIR/.env"
-fi
-
-# ── Determine ENV mode ────────────────────────────────────────
-# CLI flag overrides .env value
-if [ "$1" = "--dev" ]; then
-  APP_ENV="development"
-elif [ "$1" = "--prod" ]; then
-  APP_ENV="production"
-else
-  # Read ENV= line from api/.env (ignore comments, strip quotes/spaces)
-  APP_ENV=$(grep -E '^ENV=' "$API_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
-  APP_ENV="${APP_ENV:-development}"
-fi
-
-# Read Ollama config from .env (with fallbacks)
-OLLAMA_URL=$(grep -E '^OLLAMA_URL=' "$API_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
-OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
-OLLAMA_MODEL=$(grep -E '^OLLAMA_MODEL=' "$API_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
-OLLAMA_MODEL="${OLLAMA_MODEL:-gemma4:e4b}"
-
-if [ "$APP_ENV" = "development" ]; then
-  echo -e "  Mode: ${MAGENTA}DEVELOPMENT${NC} — LLM routed through Ollama (${OLLAMA_MODEL})"
-else
-  echo -e "  Mode: ${GREEN}PRODUCTION${NC}  — LLM routed through Anthropic Claude API"
-fi
-echo ""
-
-# ══════════════════════════════════════════════════════════════
-# DEV MODE — Ollama Docker setup
-# ══════════════════════════════════════════════════════════════
-OLLAMA_PID=""
-OLLAMA_CONTAINER="automation-station-ollama"
-
-if [ "$APP_ENV" = "development" ]; then
-  echo -e "${MAGENTA}[DEV]${NC} Checking Docker..."
-
-  if ! command -v docker &>/dev/null; then
-    echo -e "${RED}  ✗ Docker not found. Install Docker Desktop and retry.${NC}"
-    echo -e "${YELLOW}    Or set ENV=production in api/.env to use the Claude API instead.${NC}"
-    exit 1
+ensure_env_files() {
+  if [ ! -f "$API_DIR/.env" ]; then
+    echo -e "${YELLOW}api/.env not found; copying api/.env.example${NC}"
+    cp "$API_DIR/.env.example" "$API_DIR/.env"
   fi
 
-  if ! docker info &>/dev/null; then
-    echo -e "${RED}  ✗ Docker daemon is not running. Start Docker Desktop and retry.${NC}"
-    exit 1
+  if [ ! -f "$WEB_DIR/.env" ]; then
+    echo -e "${YELLOW}web/.env not found; copying web/.env.example${NC}"
+    cp "$WEB_DIR/.env.example" "$WEB_DIR/.env"
   fi
+}
 
-  echo -e "${MAGENTA}[DEV]${NC} Starting Ollama container (${OLLAMA_CONTAINER})..."
-
-  # If container exists but is stopped, restart it; otherwise create fresh
-  if docker ps -a --format '{{.Names}}' | grep -q "^${OLLAMA_CONTAINER}$"; then
-    if ! docker ps --format '{{.Names}}' | grep -q "^${OLLAMA_CONTAINER}$"; then
-      echo -e "  → Restarting existing container..."
-      docker start "$OLLAMA_CONTAINER" > /dev/null
-    else
-      echo -e "  → Container already running."
-    fi
+detect_env() {
+  if [ "${1:-}" = "--dev" ]; then
+    echo "development"
+  elif [ "${1:-}" = "--prod" ]; then
+    echo "production"
   else
-    echo -e "  → Creating new Ollama container..."
-    docker run -d \
-      --name "$OLLAMA_CONTAINER" \
-      -p 11434:11434 \
-      -v ollama-data:/root/.ollama \
-      ollama/ollama > /dev/null
+    local env_value
+    env_value="$(read_env_value "$API_DIR/.env" "ENV" | tr '[:upper:]' '[:lower:]')"
+    echo "${env_value:-development}"
+  fi
+}
+
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    echo -e "${RED}Docker was not found. Install Docker Desktop and retry.${NC}"
+    exit 1
   fi
 
-  # Wait for Ollama API to be ready
-  echo -e "${MAGENTA}[DEV]${NC} Waiting for Ollama to be ready..."
-  for i in $(seq 1 30); do
-    if curl -sf "${OLLAMA_URL}/api/tags" > /dev/null 2>&1; then
-      echo -e "  ${GREEN}✓${NC} Ollama is ready."
-      break
-    fi
-    if [ "$i" -eq 30 ]; then
-      echo -e "${RED}  ✗ Ollama did not start in time. Check: docker logs ${OLLAMA_CONTAINER}${NC}"
-      exit 1
+  if ! docker info >/dev/null 2>&1; then
+    echo -e "${RED}Docker daemon is not running. Start Docker Desktop and retry.${NC}"
+    exit 1
+  fi
+}
+
+wait_for_postgres() {
+  echo -e "${MAGENTA}[DEV]${NC} Waiting for Postgres..."
+  for _ in $(seq 1 30); do
+    if docker exec automation-station-postgres pg_isready -U postgres -d automation_station >/dev/null 2>&1; then
+      echo -e "  ${GREEN}Postgres is ready.${NC}"
+      return 0
     fi
     sleep 1
   done
+  echo -e "${RED}Postgres did not become ready in time.${NC}"
+  echo -e "${YELLOW}Check logs with: docker compose logs postgres${NC}"
+  exit 1
+}
 
-  # Check if model is already pulled
-  if docker exec "$OLLAMA_CONTAINER" ollama list 2>/dev/null | grep -q "${OLLAMA_MODEL}"; then
-    echo -e "${MAGENTA}[DEV]${NC} Model ${OLLAMA_MODEL} already present — skipping pull."
-  else
-    echo -e "${MAGENTA}[DEV]${NC} Pulling ${OLLAMA_MODEL} (this may take a few minutes on first run)..."
-    docker exec "$OLLAMA_CONTAINER" ollama pull "$OLLAMA_MODEL"
-    echo -e "  ${GREEN}✓${NC} Model ready."
+wait_for_api() {
+  echo -e "${MAGENTA}[DEV]${NC} Waiting for API (migrations + seed run on first start)..."
+  for _ in $(seq 1 60); do
+    if curl -sf http://localhost:8000/health >/dev/null 2>&1; then
+      echo -e "  ${GREEN}API is ready.${NC}"
+      return 0
+    fi
+    sleep 2
+  done
+  echo -e "${RED}API did not become ready in time.${NC}"
+  echo -e "${YELLOW}Check logs with: docker compose logs api${NC}"
+  exit 1
+}
+
+wait_for_ollama() {
+  local ollama_url="$1"
+  echo -e "${MAGENTA}[DEV]${NC} Waiting for Ollama..."
+  for _ in $(seq 1 30); do
+    if curl -sf "${ollama_url}/api/tags" >/dev/null 2>&1; then
+      echo -e "  ${GREEN}Ollama is ready.${NC}"
+      return 0
+    fi
+    sleep 1
+  done
+  echo -e "${RED}Ollama did not become ready in time.${NC}"
+  echo -e "${YELLOW}Check logs with: docker compose logs ollama${NC}"
+  exit 1
+}
+
+ensure_ollama_model() {
+  local model="$1"
+  if docker exec automation-station-ollama ollama list 2>/dev/null | grep -q "$model"; then
+    echo -e "${MAGENTA}[DEV]${NC} Ollama model ${model} already present."
+    return 0
   fi
+  echo -e "${MAGENTA}[DEV]${NC} Pulling Ollama model ${model}..."
+  docker exec automation-station-ollama ollama pull "$model"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo -e "${CYAN}Automation Station - Start${NC}"
+echo ""
+
+ensure_env_files
+APP_ENV="$(detect_env "${1:-}")"
+OLLAMA_URL="$(read_env_value "$API_DIR/.env" "OLLAMA_URL")"
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+OLLAMA_MODEL="$(read_env_value "$API_DIR/.env" "OLLAMA_MODEL")"
+OLLAMA_MODEL="${OLLAMA_MODEL:-gemma4:e4b}"
+
+if [ "$APP_ENV" = "development" ]; then
+  echo -e "Mode: ${MAGENTA}DEVELOPMENT${NC} (all services in Docker)"
+  require_docker
+
+  echo -e "${MAGENTA}[DEV]${NC} Building and starting all containers..."
+  cd "$ROOT"
+  docker compose up --build -d
+
+  wait_for_postgres
+  wait_for_api
+  wait_for_ollama "$OLLAMA_URL"
+  ensure_ollama_model "$OLLAMA_MODEL"
 
   echo ""
-fi
+  echo -e "${GREEN}Development environment is running.${NC}"
+  echo -e "  Frontend: ${CYAN}http://localhost:5173${NC}"
+  echo -e "  API:      ${CYAN}http://localhost:8000${NC}"
+  echo -e "  API docs: ${CYAN}http://localhost:8000/docs${NC}"
+  echo -e "  Ollama:   ${CYAN}${OLLAMA_URL}${NC} (${OLLAMA_MODEL})"
+  echo ""
+  echo -e "  Login:        ${YELLOW}admin@demo.com / changeme123${NC}"
+  echo -e "  Tenant slugs: ${YELLOW}demo-re${NC}, ${YELLOW}demo-co${NC}"
+  echo ""
+  echo -e "  View logs:  ${CYAN}docker compose logs -f${NC}"
+  echo -e "  Stop all:   ${CYAN}docker compose down${NC}"
+  echo ""
 
-# ══════════════════════════════════════════════════════════════
-# PRODUCTION MODE — validate Anthropic key is set
-# ══════════════════════════════════════════════════════════════
-if [ "$APP_ENV" = "production" ]; then
-  ANTHROPIC_KEY=$(grep -E '^ANTHROPIC_API_KEY=' "$API_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+else
+  echo -e "Mode: ${GREEN}PRODUCTION${NC}"
+  ANTHROPIC_KEY="$(read_env_value "$API_DIR/.env" "ANTHROPIC_API_KEY")"
   if [ -z "$ANTHROPIC_KEY" ] || [ "$ANTHROPIC_KEY" = "sk-ant-..." ]; then
-    echo -e "${RED}  ✗ ANTHROPIC_API_KEY is not set in api/.env${NC}"
-    echo -e "${YELLOW}    Set it or switch to ENV=development to use Ollama instead.${NC}"
+    echo -e "${RED}ANTHROPIC_API_KEY is not set in api/.env.${NC}"
     exit 1
   fi
-  echo -e "  ${GREEN}✓${NC} Anthropic API key found."
+
+  require_docker
+
+  echo -e "${GREEN}[1/1]${NC} Building and starting production containers..."
+  cd "$ROOT"
+  docker compose up --build -d
+
+  wait_for_postgres
+  wait_for_api
+
+  echo ""
+  echo -e "${GREEN}Production-mode containers are running.${NC}"
+  echo -e "  Frontend: ${CYAN}http://localhost:5173${NC}"
+  echo -e "  API:      ${CYAN}http://localhost:8000${NC}"
+  echo -e "  API docs: ${CYAN}http://localhost:8000/docs${NC}"
+  echo ""
+  echo -e "  View logs:  ${CYAN}docker compose logs -f${NC}"
+  echo -e "  Stop all:   ${CYAN}docker compose down${NC}"
   echo ""
 fi
-
-# ══════════════════════════════════════════════════════════════
-# Shared setup
-# ══════════════════════════════════════════════════════════════
-echo -e "${GREEN}[1/4]${NC} Setting up Python virtual environment..."
-cd "$API_DIR"
-
-if [ ! -d ".venv" ]; then
-  python -m venv .venv
-fi
-
-if [ -f ".venv/Scripts/activate" ]; then
-  source .venv/Scripts/activate   # Windows Git Bash
-else
-  source .venv/bin/activate
-fi
-
-echo -e "${GREEN}[2/4]${NC} Installing Python dependencies..."
-pip install -r requirements.txt -q
-
-echo -e "${GREEN}[3/4]${NC} Running database migrations..."
-alembic upgrade head || {
-  echo -e "${RED}   Migration failed. Is PostgreSQL running and DATABASE_URL set in api/.env?${NC}"
-  echo -e "${YELLOW}   Skipping — backend may not work until DB is available.${NC}"
-}
-
-echo -e "${GREEN}[4/4]${NC} Installing Node dependencies..."
-cd "$WEB_DIR"
-npm install --silent
-
-# ── Summary ──────────────────────────────────────────────────
-echo ""
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "  ${GREEN}✓${NC} Setup complete! Starting servers..."
-echo ""
-echo -e "  Frontend  →  ${CYAN}http://localhost:5173${NC}"
-echo -e "  API       →  ${CYAN}http://localhost:8000${NC}"
-echo -e "  API docs  →  ${CYAN}http://localhost:8000/docs${NC}"
-if [ "$APP_ENV" = "development" ]; then
-  echo -e "  Ollama    →  ${CYAN}${OLLAMA_URL}${NC}  (model: ${OLLAMA_MODEL})"
-fi
-echo ""
-echo -e "  Login (after seeding): ${YELLOW}admin@demo.com / changeme123${NC}"
-echo -e "  Tenant slugs:          ${YELLOW}demo-re${NC}  (real estate)   ${YELLOW}demo-co${NC}  (contracting)"
-echo ""
-echo -e "  To seed demo data:  cd api && python seed.py"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo -e "  Press ${RED}Ctrl+C${NC} to stop all servers."
-echo ""
-
-# ── Launch servers ────────────────────────────────────────────
-cd "$API_DIR"
-
-if [ -f ".venv/Scripts/activate" ]; then
-  source .venv/Scripts/activate
-else
-  source .venv/bin/activate
-fi
-
-uvicorn main:app --reload --port 8000 &
-API_PID=$!
-
-cd "$WEB_DIR"
-npm run dev &
-WEB_PID=$!
-
-# On Ctrl+C: kill servers (Ollama container is intentionally left running
-# so the model stays cached — stop it manually with: docker stop automation-station-ollama)
-cleanup() {
-  echo ""
-  echo -e "Stopping API and frontend..."
-  kill "$API_PID" "$WEB_PID" 2>/dev/null || true
-  if [ "$APP_ENV" = "development" ]; then
-    echo -e "${YELLOW}Note: Ollama container '${OLLAMA_CONTAINER}' is still running (model stays cached).${NC}"
-    echo -e "  Stop it manually:  docker stop ${OLLAMA_CONTAINER}"
-  fi
-  exit 0
-}
-trap cleanup SIGINT SIGTERM
-
-wait "$API_PID" "$WEB_PID"

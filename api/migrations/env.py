@@ -15,9 +15,11 @@ config = context.config
 
 # Override sqlalchemy.url from environment
 db_url = os.environ.get("DATABASE_URL", "") or get_settings().database_url
-# Railway gives postgresql:// but sync alembic needs postgresql://
+# Alembic runs synchronously, while the app uses asyncpg at runtime.
 if db_url.startswith("postgresql+asyncpg://"):
-    db_url = db_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+elif db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
 

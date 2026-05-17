@@ -16,6 +16,33 @@ services:
       timeout: 5s
       retries: 10
 
+  ollama:
+    image: ollama/ollama
+    container_name: automation-station-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    container_name: automation-station-api
+    env_file:
+      - ./api/.env
+    environment:
+      # Override localhost refs with Docker service names
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/automation_station
+      OLLAMA_URL: http://ollama:11434
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   web:
     build:
       context: ./web
@@ -35,4 +62,5 @@ services:
 
 volumes:
   postgres_data:
+  ollama_data:
   web_node_modules:

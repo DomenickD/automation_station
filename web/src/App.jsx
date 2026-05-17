@@ -12,6 +12,8 @@ import ListingGenerator from "./pages/real-estate/ListingGenerator";
 import REEmailDrafter from "./pages/real-estate/EmailDrafter";
 import CMAGenerator from "./pages/real-estate/CMAGenerator";
 import REBotManager from "./pages/real-estate/BotManager";
+import GenericGenerator from "./pages/real-estate/GenericGenerator";
+import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "./pages/real-estate/moduleConfigs";
 
 // Contracting
 import ProposalGenerator from "./pages/contracting/ProposalGenerator";
@@ -46,6 +48,13 @@ function AppRoutes() {
       <Route path="/re/email" element={<PrivateRoute><REEmailDrafter /></PrivateRoute>} />
       <Route path="/re/cma" element={<PrivateRoute><CMAGenerator /></PrivateRoute>} />
       <Route path="/re/bots" element={<PrivateRoute><REBotManager /></PrivateRoute>} />
+      {REAL_ESTATE_MODULES.map((module) => (
+        <Route
+          key={module.path}
+          path={module.path}
+          element={<PrivateRoute><GenericGenerator module={module} /></PrivateRoute>}
+        />
+      ))}
 
       {/* Contracting */}
       <Route path="/co/proposal" element={<PrivateRoute><ProposalGenerator /></PrivateRoute>} />
@@ -54,6 +63,13 @@ function AppRoutes() {
       <Route path="/co/job-brief" element={<PrivateRoute><JobBrief /></PrivateRoute>} />
       <Route path="/co/completion" element={<PrivateRoute><CompletionLetter /></PrivateRoute>} />
       <Route path="/co/bots" element={<PrivateRoute><COBotManager /></PrivateRoute>} />
+      {CONTRACT_MODULES.map((module) => (
+        <Route
+          key={module.path}
+          path={module.path}
+          element={<PrivateRoute><GenericGenerator module={module} /></PrivateRoute>}
+        />
+      ))}
 
       {/* Shared */}
       <Route path="/history" element={<PrivateRoute><History /></PrivateRoute>} />

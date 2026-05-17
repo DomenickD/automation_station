@@ -11,8 +11,38 @@ from models.tenant import Tenant
 from models.document import GeneratedDocument
 from services.claude_service import generate as ai_generate
 from services.comparable_research import research_comparables
+from services.prompt_builder import PROMPT_REGISTRY
 
 router = APIRouter(prefix="/generate", tags=["generate"])
+
+REAL_ESTATE_MODULE_ROUTES = {
+    "listing": "re_listing",
+    "email": "re_email",
+    "cma": "re_cma",
+    "neighborhood": "re_neighborhood",
+    "appointment": "re_appointment",
+    "competitive": "re_competitive",
+    "timeline": "re_timeline",
+    "seller-update": "re_seller_update",
+    "buyer-consult": "re_buyer_consult",
+    "offer-letter": "re_offer_letter",
+    "expired-outreach": "re_expired_outreach",
+    "soi-campaign": "re_soi_campaign",
+    "just-listed": "re_just_listed",
+    "open-house-followup": "re_open_house_followup",
+    "virtual-staging": "re_virtual_staging",
+    "property-faq": "re_property_faq",
+    "price-reduction": "re_price_reduction",
+    "business-plan": "re_business_plan",
+    "bio": "re_bio",
+    "testimonial": "re_testimonial",
+    "referral": "re_referral",
+}
+
+CONTRACT_MODULE_ROUTES = {
+    "listing-agreement": "contract_listing_agreement",
+    "buyer-broker": "contract_buyer_broker",
+}
 
 
 class GenerateRequest(BaseModel):
@@ -125,6 +155,20 @@ async def re_cma_research(
     )
 
 
+@router.post("/re/{module_slug}", response_model=GenerateResponse)
+async def re_module(
+    module_slug: str,
+    body: GenerateRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    module = REAL_ESTATE_MODULE_ROUTES.get(module_slug)
+    if not module or module not in PROMPT_REGISTRY:
+        raise HTTPException(status_code=404, detail="Unknown real estate module")
+    return await _run_generation(module, body, user, tenant, db)
+
+
 # ── Contracting ──────────────────────────────────────────────────────────────
 
 @router.post("/co/proposal", response_model=GenerateResponse)
@@ -175,3 +219,17 @@ async def co_job_brief(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await _run_generation("co_job_brief", body, user, tenant, db)
+
+
+@router.post("/contracts/{module_slug}", response_model=GenerateResponse)
+async def contract_module(
+    module_slug: str,
+    body: GenerateRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    module = CONTRACT_MODULE_ROUTES.get(module_slug)
+    if not module or module not in PROMPT_REGISTRY:
+        raise HTTPException(status_code=404, detail="Unknown contract module")
+    return await _run_generation(module, body, user, tenant, db)

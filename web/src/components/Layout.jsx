@@ -1,11 +1,13 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useTenant } from "../config/tenant";
+import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "../pages/real-estate/moduleConfigs";
 
 const RE_NAV = [
   { to: "/re/listing", label: "Listing Generator" },
   { to: "/re/email", label: "Email Drafter" },
   { to: "/re/cma", label: "CMA Narrative" },
+  ...REAL_ESTATE_MODULES.map((module) => ({ to: module.path, label: module.label })),
   { to: "/re/bots", label: "Property Bots" },
 ];
 
@@ -15,6 +17,7 @@ const CO_NAV = [
   { to: "/co/email", label: "Email Drafter" },
   { to: "/co/job-brief", label: "Job Brief" },
   { to: "/co/completion", label: "Completion Letter" },
+  ...CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label })),
   { to: "/co/bots", label: "Service Chatbot" },
 ];
 
