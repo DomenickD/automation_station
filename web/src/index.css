@@ -27,3 +27,18 @@ body {
 .prose strong {
   @apply font-semibold text-gray-900;
 }
+
+/* Dark mode prose overrides */
+.dark .prose h2 {
+  @apply text-gray-100;
+}
+.dark .prose p {
+  @apply text-gray-300;
+}
+.dark .prose ul,
+.dark .prose ol {
+  @apply text-gray-300;
+}
+.dark .prose strong {
+  @apply text-gray-100;
+}

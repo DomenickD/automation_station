@@ -78,6 +78,7 @@ class ComparableResearchResponse(BaseModel):
     candidates: list[ComparableCandidate]
     queries: list[str]
     message: str
+    market_notes: str = ""
 
 
 async def _run_generation(
