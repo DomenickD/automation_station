@@ -24,22 +24,22 @@ export default function OutputCard({ output, documentId, onRegenerate, loading }
   if (!output) return null;
 
   return (
-    <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span className="text-sm font-medium text-gray-700">Generated Output</span>
+    <div className="mb-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Generated Output</span>
         <div className="flex gap-2">
           {documentId && onRegenerate && (
             <button
               onClick={() => onRegenerate(documentId)}
               disabled={loading}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
             >
               {loading ? "Regenerating..." : "Regenerate"}
             </button>
           )}
           <button
             onClick={downloadTxt}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             Download .txt
           </button>
@@ -52,7 +52,7 @@ export default function OutputCard({ output, documentId, onRegenerate, loading }
           </button>
         </div>
       </div>
-      <div className="px-6 py-4 prose prose-sm max-w-none text-gray-800">
+      <div className="px-6 py-4 prose prose-sm max-w-none text-gray-800 dark:text-gray-200">
         <ReactMarkdown>{output}</ReactMarkdown>
       </div>
     </div>
