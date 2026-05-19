@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Icon } from "@iconify/react";
 import OutputCard from "../../components/OutputCard";
 import ListingSelector from "../../components/ListingSelector";
 import client from "../../api/client";
@@ -75,9 +76,7 @@ function AddressSearch({ value, onChange }) {
           placeholder="789 Pine St, Austin, TX 78702"
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 px-3 py-2 text-sm pr-9"
         />
-        <svg className="absolute right-2.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-        </svg>
+        <Icon icon="mdi:magnify" className="absolute right-2.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
       </div>
       {open && (
         <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
@@ -260,7 +259,7 @@ function ComparableRow({ comp, index, onChange, onRemove }) {
         )}
         <button type="button" onClick={() => setExpanded((v) => !v)}
           className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 px-1 shrink-0">
-          {expanded ? "▲" : "▼"}
+          <Icon icon={expanded ? "mdi:chevron-up" : "mdi:chevron-down"} className="w-4 h-4" />
         </button>
         <button type="button" onClick={() => onRemove(index)}
           className="text-xs text-gray-400 hover:text-red-500 shrink-0">✕</button>
@@ -315,10 +314,7 @@ function LoadingOverlay({ message }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 max-w-sm mx-4 text-center">
-        <svg className="animate-spin w-10 h-10 text-blue-600" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-        </svg>
+        <Icon icon="svg-spinners:ring-resize" className="w-10 h-10 text-blue-600" />
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{message}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500">This may take 30–60 seconds</p>
       </div>
@@ -553,9 +549,7 @@ export default function CMAGenerator() {
             className="w-full mb-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50"
             style={{ backgroundColor: "var(--brand-color, #2563eb)" }}
           >
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-            </svg>
+            <Icon icon="mdi:magnify" className="w-4 h-4 shrink-0" />
             Find Comparable Sales with AI
           </button>
 

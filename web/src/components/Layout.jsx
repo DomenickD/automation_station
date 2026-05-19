@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Icon } from "@iconify/react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useTenant } from "../config/tenant";
@@ -7,7 +9,7 @@ import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "../pages/real-estate/modu
 
 function moduleLink(slug) {
   const module = REAL_ESTATE_MODULES.find((item) => item.slug === slug);
-  return module ? { to: module.path, label: module.label } : null;
+  return module ? { to: module.path, label: module.label, description: module.description } : null;
 }
 
 const RE_NAV_GROUPS = [
@@ -15,20 +17,20 @@ const RE_NAV_GROUPS = [
     id: "listings",
     label: "Listings",
     items: [
-      { to: "/re/saved-listings", label: "Saved Listings" },
-      { to: "/re/listing", label: "Listing Generator" },
+      { to: "/re/saved-listings", label: "Saved Listings", description: "Save and revisit properties for client comparisons and follow-up." },
+      { to: "/re/listing", label: "Listing Generator", description: "Generate professional MLS listing descriptions from property details." },
       moduleLink("property-faq"),
       moduleLink("virtual-staging"),
       moduleLink("just-listed"),
       moduleLink("price-reduction"),
-      { to: "/re/bots", label: "Property Bots" },
+      { to: "/re/bots", label: "Property Bots", description: "Deploy AI-powered chatbots for individual property listings." },
     ],
   },
   {
     id: "market",
     label: "Market Prep",
     items: [
-      { to: "/re/cma", label: "CMA Narrative" },
+      { to: "/re/cma", label: "CMA Narrative", description: "Create a narrative summary for a Comparative Market Analysis report." },
       moduleLink("neighborhood"),
       moduleLink("appointment"),
       moduleLink("competitive"),
@@ -38,7 +40,7 @@ const RE_NAV_GROUPS = [
     id: "clients",
     label: "Client Workflows",
     items: [
-      { to: "/re/email", label: "Email Drafter" },
+      { to: "/re/email", label: "Email Drafter", description: "Draft professional emails for buyers, sellers, and prospects." },
       moduleLink("timeline"),
       moduleLink("seller-update"),
       moduleLink("buyer-consult"),
@@ -67,7 +69,7 @@ const RE_NAV_GROUPS = [
   {
     id: "contracts",
     label: "Contracts",
-    items: CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label })),
+    items: CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label, description: module.description })),
   },
 ].map((group) => ({
   ...group,
@@ -75,20 +77,57 @@ const RE_NAV_GROUPS = [
 }));
 
 const CO_NAV = [
-  { to: "/co/proposal", label: "Proposal Writer" },
-  { to: "/co/sow", label: "Scope of Work" },
-  { to: "/co/email", label: "Email Drafter" },
-  { to: "/co/job-brief", label: "Job Brief" },
-  { to: "/co/completion", label: "Completion Letter" },
-  ...CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label })),
-  { to: "/co/bots", label: "Service Chatbot" },
+  { to: "/co/proposal", label: "Proposal Writer", description: "Generate detailed project proposals for prospective clients." },
+  { to: "/co/sow", label: "Scope of Work", description: "Define project deliverables, tasks, and technical requirements." },
+  { to: "/co/email", label: "Email Drafter", description: "Draft professional project communications and client emails." },
+  { to: "/co/job-brief", label: "Job Brief", description: "Summarize a job clearly for your team or subcontractors." },
+  { to: "/co/completion", label: "Completion Letter", description: "Generate a project completion certificate or sign-off letter." },
+  ...CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label, description: module.description })),
+  { to: "/co/bots", label: "Service Chatbot", description: "Deploy a chatbot to handle client FAQs and service inquiries." },
 ];
 
 const SHARED_NAV = [
-  { to: "/history", label: "Document History" },
-  { to: "/usage", label: "Usage Dashboard" },
-  { to: "/settings", label: "Settings" },
+  { to: "/history", label: "Document History", description: "View and reopen all previously generated documents." },
+  { to: "/usage", label: "Usage Dashboard", description: "Monitor your AI usage and remaining credits." },
+  { to: "/settings", label: "Settings", description: "Manage account, branding, and tenant preferences." },
 ];
+
+function InfoTooltip({ description }) {
+  const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const ref = useRef(null);
+
+  if (!description) return null;
+
+  function handleMouseEnter() {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setCoords({ x: rect.right + 8, y: rect.top + rect.height / 2 });
+    }
+    setVisible(true);
+  }
+
+  return (
+    <span
+      ref={ref}
+      className="ml-auto flex-shrink-0 cursor-help"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setVisible(false)}
+      onClick={(e) => e.preventDefault()}
+    >
+      <Icon icon="mdi:information-outline" className="w-3.5 h-3.5 opacity-50 hover:opacity-100 transition-opacity" />
+      {visible && createPortal(
+        <div
+          className="fixed z-[9999] w-48 -translate-y-1/2 rounded-md bg-gray-900 px-2.5 py-2 text-xs text-white shadow-lg pointer-events-none"
+          style={{ left: coords.x, top: coords.y }}
+        >
+          {description}
+        </div>,
+        document.body
+      )}
+    </span>
+  );
+}
 
 function NavItem({ item, nested = false }) {
   return (
@@ -107,7 +146,8 @@ function NavItem({ item, nested = false }) {
         isActive ? { backgroundColor: "var(--brand-color, #2563eb)" } : {}
       }
     >
-      {item.label}
+      <span className="flex-1 min-w-0 truncate">{item.label}</span>
+      <InfoTooltip description={item.description} />
     </NavLink>
   );
 }
@@ -133,7 +173,7 @@ function NavGroup({ group, currentPath }) {
         aria-expanded={open}
       >
         <span>{group.label}</span>
-        <span className="text-[10px] leading-none">{open ? "v" : ">"}</span>
+        <Icon icon={open ? "mdi:chevron-down" : "mdi:chevron-right"} className="w-3.5 h-3.5" />
       </button>
 
       {open && (
@@ -199,7 +239,7 @@ export default function Layout({ children }) {
             className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg mb-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <span>{dark ? "Light Mode" : "Dark Mode"}</span>
-            <span className="text-base leading-none">{dark ? "☀️" : "🌙"}</span>
+            <Icon icon={dark ? "mdi:white-balance-sunny" : "mdi:moon-waning-crescent"} className="text-lg" />
           </button>
           <div className="px-3 py-2">
             <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{user?.name || user?.email}</p>
