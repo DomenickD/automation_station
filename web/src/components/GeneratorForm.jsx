@@ -1,8 +1,10 @@
 /**
  * Reusable generator form component.
  * Pass `fields` as an array of field descriptors and `onSubmit` handler.
+ * Pass `initialValues` to pre-populate fields (e.g. from a saved listing).
+ * Change the `formKey` prop to reset the form with new initialValues.
  */
-export default function GeneratorForm({ fields, onSubmit, loading, submitLabel = "Generate" }) {
+export default function GeneratorForm({ fields, onSubmit, loading, submitLabel = "Generate", initialValues = {} }) {
   function handleSubmit(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -25,7 +27,7 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
           {field.type === "select" ? (
             <select
               name={field.name}
-              defaultValue={field.defaultValue || ""}
+              defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
               required={field.required}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -42,6 +44,7 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
               placeholder={field.placeholder}
               required={field.required}
               rows={field.rows || 4}
+              defaultValue={initialValues[field.name] ?? ""}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           ) : (
@@ -50,7 +53,7 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
               name={field.name}
               placeholder={field.placeholder}
               required={field.required}
-              defaultValue={field.defaultValue || ""}
+              defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           )}

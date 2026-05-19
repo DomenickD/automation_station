@@ -12,6 +12,19 @@ def _money(text: str) -> str:
     return match.group(0) if match else ""
 
 
+def _money_value(text: str) -> float | None:
+    match = re.search(r"\$?\s*([\d,]+(?:\.\d+)?)\s*([KkMm])?", text or "")
+    if not match:
+        return None
+    value = float(match.group(1).replace(",", ""))
+    suffix = (match.group(2) or "").lower()
+    if suffix == "k":
+        value *= 1_000
+    elif suffix == "m":
+        value *= 1_000_000
+    return value if value > 10_000 else None
+
+
 def _beds_baths(text: str) -> str:
     beds = re.search(r"(\d+(?:\.\d+)?)\s*(?:bd|bed|beds|bedroom)", text, re.I)
     baths = re.search(r"(\d+(?:\.\d+)?)\s*(?:ba|bath|baths|bathroom)", text, re.I)
@@ -23,9 +36,23 @@ def _beds_baths(text: str) -> str:
     return " / ".join(parts)
 
 
+def _bed_bath_values(text: str) -> tuple[float | None, float | None]:
+    beds = re.search(r"(\d+(?:\.\d+)?)\s*(?:bd|bed|beds|bedroom|BR)", text or "", re.I)
+    baths = re.search(r"(\d+(?:\.\d+)?)\s*(?:ba|bath|baths|bathroom|BA)", text or "", re.I)
+    return (
+        float(beds.group(1)) if beds else None,
+        float(baths.group(1)) if baths else None,
+    )
+
+
 def _sqft(text: str) -> str:
     match = re.search(r"([\d,]+)\s*(?:sq\.?\s*ft\.?|sqft|square feet)", text, re.I)
     return match.group(1).replace(",", "") if match else ""
+
+
+def _sqft_value(text: str) -> int | None:
+    sqft = _sqft(text or "")
+    return int(sqft) if sqft.isdigit() else None
 
 
 _MONTHS = {
@@ -153,16 +180,83 @@ def _is_subject_property(candidate_addr: str, subject_addr: str) -> bool:
     return c == s
 
 
+def _subject_profile(subject_property: str, subject_details: str) -> dict:
+    text = f"{subject_property} {subject_details}"
+    beds, baths = _bed_bath_values(text)
+    return {
+        "sqft": _sqft_value(text),
+        "price": _money_value(text),
+        "beds": beds,
+        "baths": baths,
+    }
+
+
+def _looks_sold(text: str) -> bool:
+    return bool(re.search(r"\b(sold|closed|recently sold|sale price|sold price)\b", text or "", re.I))
+
+
+def _similarity_score(candidate: dict, subject: dict, exact_subject: bool) -> float:
+    if exact_subject:
+        return 10_000
+
+    score = _confidence(candidate) * 10
+
+    subject_sqft = subject.get("sqft")
+    candidate_sqft = int(candidate["sqft"]) if str(candidate.get("sqft", "")).isdigit() else None
+    if subject_sqft and candidate_sqft:
+        diff = abs(candidate_sqft - subject_sqft) / subject_sqft
+        if diff <= 0.10:
+            score += 60
+        elif diff <= 0.15:
+            score += 45
+        elif diff <= 0.25:
+            score += 25
+        elif diff > 0.40:
+            score -= 50
+
+    subject_price = subject.get("price")
+    candidate_price = _money_value(candidate.get("sale_price", ""))
+    if subject_price and candidate_price:
+        diff = abs(candidate_price - subject_price) / subject_price
+        if diff <= 0.10:
+            score += 50
+        elif diff <= 0.20:
+            score += 30
+        elif diff <= 0.35:
+            score += 10
+        elif diff > 0.50:
+            score -= 45
+
+    subject_beds = subject.get("beds")
+    subject_baths = subject.get("baths")
+    candidate_beds, candidate_baths = _bed_bath_values(candidate.get("beds_baths", ""))
+    if subject_beds and candidate_beds:
+        score += 20 if subject_beds == candidate_beds else -10 * abs(subject_beds - candidate_beds)
+    if subject_baths and candidate_baths:
+        score += 15 if subject_baths == candidate_baths else -8 * abs(subject_baths - candidate_baths)
+
+    return score
+
+
 def build_research_queries(subject_property: str, subject_details: str = "") -> list[str]:
     full_address = subject_property.strip()
     # Extract city/state portion for neighbourhood-level searches
     city_match = re.search(r",\s*([A-Za-z ]+),?\s*[A-Z]{2}\s*\d{5}", full_address)
     location = city_match.group(0).strip(", ") if city_match else full_address
+    profile = _subject_profile(subject_property, subject_details)
+    terms = []
+    if profile.get("sqft"):
+        terms.append(f"{profile['sqft']} sqft")
+    if profile.get("beds"):
+        terms.append(f"{profile['beds']:.0f} bedroom")
+    if profile.get("price"):
+        terms.append(f"around ${profile['price']:,.0f}")
+    similarity_terms = " ".join(terms)
     return [
-        f"recently sold comparable homes near {full_address} sale price sqft bedrooms",
-        f"Zillow sold listings {location} sold price 2024 2025 bedrooms sqft",
-        f"Redfin recently sold homes {location} sale price comparable",
-        f"Realtor.com sold homes near {full_address} sale price",
+        f"recently sold homes near {full_address} {similarity_terms} sold price square feet",
+        f"Zillow recently sold homes {location} {similarity_terms} sold price sqft",
+        f"Redfin sold homes {location} {similarity_terms} closed price sqft",
+        f"Realtor.com recently sold homes near {full_address} {similarity_terms}",
     ]
 
 
@@ -191,6 +285,7 @@ async def research_comparables(
     max_results: int = 8,
 ) -> dict:
     queries = build_research_queries(subject_property, subject_details)
+    subject = _subject_profile(subject_property, subject_details)
 
     if not settings.tavily_api_key:
         return {
@@ -200,9 +295,24 @@ async def research_comparables(
         }
 
     raw_results = []
+    search_errors = []
     async with httpx.AsyncClient(timeout=45.0) as client:
         for query in queries:
-            raw_results.extend(await _search_query(client, query, max_results))
+            try:
+                raw_results.extend(await _search_query(client, query, max_results))
+            except httpx.HTTPStatusError as exc:
+                detail = exc.response.text[:200] if exc.response is not None else str(exc)
+                search_errors.append(f"Search provider returned {exc.response.status_code}: {detail}")
+            except httpx.HTTPError as exc:
+                search_errors.append(f"Search provider request failed: {exc}")
+
+    if not raw_results and search_errors:
+        return {
+            "candidates": [],
+            "queries": queries,
+            "message": "Comparable research could not reach the search provider. Add comps manually for now.",
+            "market_notes": "",
+        }
 
     candidates = []
     seen_urls = set()
@@ -225,7 +335,9 @@ async def research_comparables(
             continue
 
         # Discard if this is the subject property itself
-        if _is_subject_property(address, subject_property):
+        exact_subject = _is_subject_property(address, subject_property)
+
+        if not _looks_sold(combined):
             continue
 
         # Discard if no sale price can be extracted — not a useful comp
@@ -238,7 +350,7 @@ async def research_comparables(
             continue
         seen_addresses.add(address_key)
 
-        candidates.append({
+        candidate = {
             "address": address,
             "sqft": _sqft(combined),
             "beds_baths": _beds_baths(combined),
@@ -248,10 +360,13 @@ async def research_comparables(
             "source_title": title,
             "source_url": url,
             "evidence": content[:500],
-            "selected": True,
-        })
+            "selected": not exact_subject,
+            "is_subject_property": exact_subject,
+        }
+        candidate["similarity_score"] = _similarity_score(candidate, subject, exact_subject)
+        candidates.append(candidate)
 
-    candidates.sort(key=_confidence, reverse=True)
+    candidates.sort(key=lambda candidate: candidate.get("similarity_score", 0), reverse=True)
     candidates = candidates[:max_results]
 
     total = len(candidates)

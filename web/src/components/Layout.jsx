@@ -1,16 +1,78 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useTenant } from "../config/tenant";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "../pages/real-estate/moduleConfigs";
 
-const RE_NAV = [
-  { to: "/re/listing", label: "Listing Generator" },
-  { to: "/re/email", label: "Email Drafter" },
-  { to: "/re/cma", label: "CMA Narrative" },
-  ...REAL_ESTATE_MODULES.map((module) => ({ to: module.path, label: module.label })),
-  { to: "/re/bots", label: "Property Bots" },
-];
+function moduleLink(slug) {
+  const module = REAL_ESTATE_MODULES.find((item) => item.slug === slug);
+  return module ? { to: module.path, label: module.label } : null;
+}
+
+const RE_NAV_GROUPS = [
+  {
+    id: "listings",
+    label: "Listings",
+    items: [
+      { to: "/re/saved-listings", label: "Saved Listings" },
+      { to: "/re/listing", label: "Listing Generator" },
+      moduleLink("property-faq"),
+      moduleLink("virtual-staging"),
+      moduleLink("just-listed"),
+      moduleLink("price-reduction"),
+      { to: "/re/bots", label: "Property Bots" },
+    ],
+  },
+  {
+    id: "market",
+    label: "Market Prep",
+    items: [
+      { to: "/re/cma", label: "CMA Narrative" },
+      moduleLink("neighborhood"),
+      moduleLink("appointment"),
+      moduleLink("competitive"),
+    ],
+  },
+  {
+    id: "clients",
+    label: "Client Workflows",
+    items: [
+      { to: "/re/email", label: "Email Drafter" },
+      moduleLink("timeline"),
+      moduleLink("seller-update"),
+      moduleLink("buyer-consult"),
+      moduleLink("offer-letter"),
+    ],
+  },
+  {
+    id: "leads",
+    label: "Lead Outreach",
+    items: [
+      moduleLink("expired-outreach"),
+      moduleLink("soi-campaign"),
+      moduleLink("open-house-followup"),
+      moduleLink("referral"),
+    ],
+  },
+  {
+    id: "agent",
+    label: "Agent Growth",
+    items: [
+      moduleLink("business-plan"),
+      moduleLink("bio"),
+      moduleLink("testimonial"),
+    ],
+  },
+  {
+    id: "contracts",
+    label: "Contracts",
+    items: CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label })),
+  },
+].map((group) => ({
+  ...group,
+  items: group.items.filter(Boolean),
+}));
 
 const CO_NAV = [
   { to: "/co/proposal", label: "Proposal Writer" },
@@ -28,13 +90,72 @@ const SHARED_NAV = [
   { to: "/settings", label: "Settings" },
 ];
 
+function NavItem({ item, nested = false }) {
+  return (
+    <NavLink
+      to={item.to}
+      className={({ isActive }) =>
+        `flex items-center gap-2 rounded-lg text-sm mb-0.5 transition-colors ${
+          nested ? "px-3 py-1.5 ml-3" : "px-3 py-2"
+        } ${
+          isActive
+            ? "text-white font-medium"
+            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+        }`
+      }
+      style={({ isActive }) =>
+        isActive ? { backgroundColor: "var(--brand-color, #2563eb)" } : {}
+      }
+    >
+      {item.label}
+    </NavLink>
+  );
+}
+
+function NavGroup({ group, currentPath }) {
+  const hasActiveChild = group.items.some((item) => currentPath === item.to);
+  const [open, setOpen] = useState(hasActiveChild);
+
+  useEffect(() => {
+    if (hasActiveChild) setOpen(true);
+  }, [hasActiveChild]);
+
+  return (
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
+          hasActiveChild
+            ? "text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-800"
+            : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+        }`}
+        aria-expanded={open}
+      >
+        <span>{group.label}</span>
+        <span className="text-[10px] leading-none">{open ? "v" : ">"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-1 border-l border-gray-200 dark:border-gray-700 ml-2 pl-1">
+          {group.items.map((item) => (
+            <NavItem key={item.to} item={item} nested />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const tenant = useTenant();
   const navigate = useNavigate();
+  const location = useLocation();
   const [dark, setDark] = useDarkMode();
 
-  const navItems = tenant?.vertical === "contracting" ? CO_NAV : RE_NAV;
+  const isContracting = tenant?.vertical === "contracting";
+  const navItems = isContracting ? CO_NAV : [];
 
   function handleLogout() {
     logout();
@@ -59,46 +180,16 @@ export default function Layout({ children }) {
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 mb-2">
             {tenant?.vertical === "contracting" ? "Contracting Tools" : "Real Estate Tools"}
           </p>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors ${
-                  isActive
-                    ? "text-white font-medium"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`
-              }
-              style={({ isActive }) =>
-                isActive ? { backgroundColor: "var(--brand-color, #2563eb)" } : {}
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {isContracting
+            ? navItems.map((item) => <NavItem key={item.to} item={item} />)
+            : RE_NAV_GROUPS.map((group) => (
+                <NavGroup key={group.id} group={group} currentPath={location.pathname} />
+              ))}
 
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 mb-2 mt-4">
             Account
           </p>
-          {SHARED_NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors ${
-                  isActive
-                    ? "text-white font-medium"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`
-              }
-              style={({ isActive }) =>
-                isActive ? { backgroundColor: "var(--brand-color, #2563eb)" } : {}
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {SHARED_NAV.map((item) => <NavItem key={item.to} item={item} />)}
         </nav>
 
         <div className="p-3 border-t border-gray-100 dark:border-gray-700">

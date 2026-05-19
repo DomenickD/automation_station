@@ -1,5 +1,7 @@
+import { useState } from "react";
 import GeneratorForm from "../../components/GeneratorForm";
 import OutputCard from "../../components/OutputCard";
+import ListingSelector from "../../components/ListingSelector";
 import { useGenerate } from "../../hooks/useGenerate";
 
 const FIELDS = [
@@ -37,13 +39,32 @@ const FIELDS = [
 
 export default function ListingGenerator() {
   const { generate, regenerate, loading, result, error } = useGenerate("/generate/re/listing");
+  const [formKey, setFormKey] = useState(0);
+  const [initialValues, setInitialValues] = useState({});
+
+  function handleListingSelect(listing) {
+    setInitialValues({
+      address: listing.address || "",
+      bedrooms: listing.bedrooms != null ? String(listing.bedrooms) : "",
+      bathrooms: listing.bathrooms != null ? String(listing.bathrooms) : "",
+      sqft: listing.sqft != null ? String(listing.sqft) : "",
+      lot_size: listing.lot_size || "",
+      year_built: listing.year_built != null ? String(listing.year_built) : "",
+      features: listing.features || "",
+      neighborhood: listing.neighborhood || "",
+      price_target: listing.price_target || "",
+    });
+    setFormKey((k) => k + 1);
+  }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Listing Description Generator</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Listing Description Generator</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Generate MLS descriptions, marketing copy, social captions, and email teasers from property details.
       </p>
+
+      <ListingSelector onSelect={handleListingSelect} />
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
@@ -60,8 +81,14 @@ export default function ListingGenerator() {
         />
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <GeneratorForm fields={FIELDS} onSubmit={generate} loading={loading} />
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <GeneratorForm
+          key={formKey}
+          fields={FIELDS}
+          onSubmit={generate}
+          loading={loading}
+          initialValues={initialValues}
+        />
       </div>
     </div>
   );

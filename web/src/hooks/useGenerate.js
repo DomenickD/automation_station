@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import client from "../api/client";
 
 export function useGenerate(endpoint) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(false);
+    setResult(null);
+    setError(null);
+  }, [endpoint]);
 
   async function generate(inputData) {
     setLoading(true);

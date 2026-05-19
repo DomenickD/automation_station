@@ -1,5 +1,7 @@
+import { useState } from "react";
 import GeneratorForm from "../../components/GeneratorForm";
 import OutputCard from "../../components/OutputCard";
+import ListingSelector from "../../components/ListingSelector";
 import { useGenerate } from "../../hooks/useGenerate";
 
 const EMAIL_TYPES = [
@@ -38,13 +40,25 @@ const FIELDS = [
 
 export default function REEmailDrafter() {
   const { generate, regenerate, loading, result, error } = useGenerate("/generate/re/email");
+  const [formKey, setFormKey] = useState(0);
+  const [initialValues, setInitialValues] = useState({});
+
+  function handleListingSelect(listing) {
+    setInitialValues({
+      property_address: listing.address || "",
+      client_name: listing.seller_name || listing.buyer_name || "",
+    });
+    setFormKey((k) => k + 1);
+  }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Email Drafter</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Email Drafter</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Generate professional real estate emails for every client scenario.
       </p>
+
+      <ListingSelector onSelect={handleListingSelect} />
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
@@ -61,8 +75,14 @@ export default function REEmailDrafter() {
         />
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <GeneratorForm fields={FIELDS} onSubmit={generate} loading={loading} />
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <GeneratorForm
+          key={formKey}
+          fields={FIELDS}
+          onSubmit={generate}
+          loading={loading}
+          initialValues={initialValues}
+        />
       </div>
     </div>
   );

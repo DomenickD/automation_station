@@ -4,6 +4,7 @@ from .document import GeneratedDocument
 from .chat import ChatSession, BotConfig
 from .knowledge import KnowledgeDocument
 from .usage import UsageEvent
+from .saved_listing import SavedListing
 
 __all__ = [
     "Tenant",
@@ -13,4 +14,5 @@ __all__ = [
     "BotConfig",
     "KnowledgeDocument",
     "UsageEvent",
+    "SavedListing",
 ]

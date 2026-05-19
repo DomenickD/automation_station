@@ -13,6 +13,7 @@ import REEmailDrafter from "./pages/real-estate/EmailDrafter";
 import CMAGenerator from "./pages/real-estate/CMAGenerator";
 import REBotManager from "./pages/real-estate/BotManager";
 import GenericGenerator from "./pages/real-estate/GenericGenerator";
+import SavedListings from "./pages/real-estate/SavedListings";
 import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "./pages/real-estate/moduleConfigs";
 
 // Contracting
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/re/email" element={<PrivateRoute><REEmailDrafter /></PrivateRoute>} />
       <Route path="/re/cma" element={<PrivateRoute><CMAGenerator /></PrivateRoute>} />
       <Route path="/re/bots" element={<PrivateRoute><REBotManager /></PrivateRoute>} />
+      <Route path="/re/saved-listings" element={<PrivateRoute><SavedListings /></PrivateRoute>} />
       {REAL_ESTATE_MODULES.map((module) => (
         <Route
           key={module.path}

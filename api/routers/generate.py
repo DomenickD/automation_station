@@ -1,7 +1,9 @@
 from typing import Annotated
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -9,6 +11,7 @@ from middleware.auth import get_current_user, get_current_tenant
 from models.user import User
 from models.tenant import Tenant
 from models.document import GeneratedDocument
+from models.saved_listing import SavedListing
 from services.claude_service import generate as ai_generate
 from services.comparable_research import research_comparables
 from services.prompt_builder import PROMPT_REGISTRY
@@ -72,6 +75,8 @@ class ComparableCandidate(BaseModel):
     source_url: str = ""
     evidence: str = ""
     selected: bool = True
+    is_subject_property: bool = False
+    similarity_score: float = 0
 
 
 class ComparableResearchResponse(BaseModel):
@@ -79,6 +84,89 @@ class ComparableResearchResponse(BaseModel):
     queries: list[str]
     message: str
     market_notes: str = ""
+
+
+_RE_MODULES = set(REAL_ESTATE_MODULE_ROUTES.values()) | {"re_listing", "re_email", "re_cma"}
+
+# Maps module name → which input_data key holds the property address
+_ADDRESS_KEYS = {
+    "re_listing": "address",
+    "re_email": "property_address",
+    "re_cma": "subject_property",
+}
+
+# For most generic RE modules, the address field is just "address"
+_GENERIC_ADDRESS_KEY = "address"
+
+
+async def _upsert_saved_listing(
+    module: str,
+    input_data: dict,
+    user: User,
+    tenant: Tenant,
+    db: AsyncSession,
+) -> None:
+    address_key = _ADDRESS_KEYS.get(module, _GENERIC_ADDRESS_KEY)
+    address = (input_data.get(address_key) or "").strip()
+    if not address:
+        return
+
+    existing = await db.execute(
+        select(SavedListing).where(
+            SavedListing.tenant_id == tenant.id,
+            func.lower(SavedListing.address) == func.lower(address),
+        )
+    )
+    listing = existing.scalars().first()
+
+    def _val(key):
+        v = input_data.get(key)
+        return v if v not in (None, "") else None
+
+    def _float(key):
+        try:
+            v = _val(key)
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    def _int(key):
+        try:
+            v = _val(key)
+            return int(float(v)) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    if listing:
+        updates = {
+            "bedrooms": _float("bedrooms"),
+            "bathrooms": _float("bathrooms"),
+            "sqft": _int("sqft"),
+            "lot_size": _val("lot_size"),
+            "year_built": _int("year_built"),
+            "price_target": _val("price_target") or _val("price_range"),
+            "features": _val("features"),
+            "neighborhood": _val("neighborhood"),
+        }
+        for field, value in updates.items():
+            if value is not None:
+                setattr(listing, field, value)
+        listing.updated_at = datetime.now(timezone.utc)
+    else:
+        listing = SavedListing(
+            tenant_id=tenant.id,
+            user_id=user.id,
+            address=address,
+            bedrooms=_float("bedrooms"),
+            bathrooms=_float("bathrooms"),
+            sqft=_int("sqft"),
+            lot_size=_val("lot_size"),
+            year_built=_int("year_built"),
+            price_target=_val("price_target") or _val("price_range"),
+            features=_val("features"),
+            neighborhood=_val("neighborhood"),
+        )
+        db.add(listing)
 
 
 async def _run_generation(
@@ -101,6 +189,10 @@ async def _run_generation(
         parent_id=uuid.UUID(parent_id) if parent_id else None,
     )
     db.add(doc)
+
+    if module in _RE_MODULES:
+        await _upsert_saved_listing(module, body.input_data, user, tenant, db)
+
     await db.commit()
     await db.refresh(doc)
 
@@ -149,11 +241,19 @@ async def re_cma_research(
     user: Annotated[User, Depends(get_current_user)],
     tenant: Annotated[Tenant, Depends(get_current_tenant)],
 ):
-    return await research_comparables(
-        body.subject_property,
-        body.subject_details,
-        body.max_results,
-    )
+    try:
+        return await research_comparables(
+            body.subject_property,
+            body.subject_details,
+            body.max_results,
+        )
+    except Exception as exc:
+        return ComparableResearchResponse(
+            candidates=[],
+            queries=[],
+            message=f"Comparable research could not complete: {exc}",
+            market_notes="",
+        )
 
 
 @router.post("/re/{module_slug}", response_model=GenerateResponse)

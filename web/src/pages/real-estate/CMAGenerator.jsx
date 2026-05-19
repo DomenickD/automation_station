@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import OutputCard from "../../components/OutputCard";
+import ListingSelector from "../../components/ListingSelector";
 import client from "../../api/client";
 import { useGenerate } from "../../hooks/useGenerate";
 
@@ -15,6 +16,8 @@ const EMPTY_COMP = {
   sale_date: "",
   source_url: "",
   evidence: "",
+  is_subject_property: false,
+  similarity_score: 0,
 };
 
 const PROPERTY_TYPES = ["Single Family", "Condo", "Townhouse", "Multi-Family", "Villa", "Land"];
@@ -236,14 +239,24 @@ function ComparableRow({ comp, index, onChange, onRemove }) {
     <div className="border border-gray-200 dark:border-gray-600 rounded-lg mb-2 overflow-hidden">
       {/* Collapsed header — always visible */}
       <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 dark:bg-gray-800">
-        <input type="checkbox" checked={comp.selected} onChange={(e) => update("selected", e.target.checked)}
-          className="rounded border-gray-300 shrink-0" />
+        <input
+          type="checkbox"
+          checked={comp.selected}
+          disabled={comp.is_subject_property}
+          onChange={(e) => update("selected", e.target.checked)}
+          className="rounded border-gray-300 shrink-0 disabled:opacity-40"
+        />
         <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 shrink-0 w-14">#{index + 1}</span>
         <span className="flex-1 text-xs text-gray-700 dark:text-gray-200 truncate min-w-0">
           {comp.address || <span className="text-gray-400 italic">No address</span>}
         </span>
         {comp.sale_price && (
           <span className="text-xs font-semibold text-green-700 dark:text-green-400 shrink-0 ml-1">{comp.sale_price}</span>
+        )}
+        {comp.is_subject_property && (
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 rounded px-1.5 py-0.5">
+            Subject
+          </span>
         )}
         <button type="button" onClick={() => setExpanded((v) => !v)}
           className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 px-1 shrink-0">
@@ -315,7 +328,69 @@ function LoadingOverlay({ message }) {
 
 // ──────────────────── price range from comps ─────────────────────────
 
-function calcPriceRange(candidates) {
+function parsePrice(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/\$?\s*([\d,]+(?:\.\d+)?)\s*([KkMm])?/);
+  if (!match) return null;
+  let price = parseFloat(match[1].replace(/,/g, ""));
+  const suffix = (match[2] || "").toLowerCase();
+  if (suffix === "k") price *= 1000;
+  if (suffix === "m") price *= 1000000;
+  return price > 10000 ? price : null;
+}
+
+function parseSqft(value) {
+  const text = String(value || "");
+  const match = text.match(/([\d,]+)\s*(?:sq\.?\s*ft\.?|sqft|square feet)/i)
+    || (text.trim().match(/^[\d,]+$/) ? text.trim().match(/^([\d,]+)$/) : null);
+  if (!match) return null;
+  const sqft = parseInt(match[1].replace(/,/g, ""), 10);
+  return sqft > 200 ? sqft : null;
+}
+
+function calcPriceRange(candidates, subjectDetails = "") {
+  const selected = candidates.filter((c) => c.selected && !c.is_subject_property);
+  const subjectSqft = parseSqft(subjectDetails);
+
+  const compData = selected
+    .map((c) => ({
+      price: parsePrice(c.sale_price),
+      sqft: parseSqft(c.sqft),
+    }))
+    .filter((c) => c.price);
+
+  if (compData.length === 0) return "";
+
+  const estimates = compData
+    .map((c) => {
+      if (subjectSqft && c.sqft) return (c.price / c.sqft) * subjectSqft;
+      return c.price;
+    })
+    .filter((p) => !isNaN(p) && p > 10000)
+    .sort((a, b) => a - b);
+
+  if (estimates.length === 0) return "";
+
+  const trimmed = estimates.length >= 5 ? estimates.slice(1, -1) : estimates;
+  const mid = trimmed[Math.floor(trimmed.length / 2)];
+  const lowObserved = trimmed[0];
+  const highObserved = trimmed[trimmed.length - 1];
+  const spread = Math.max(
+    7500,
+    mid * (trimmed.length >= 3 ? 0.025 : 0.04),
+    Math.min((highObserved - lowObserved) / 2, mid * 0.06)
+  );
+  const round = (n) => Math.round(n / 2500) * 2500;
+  const lo = round(mid - spread);
+  const hi = round(mid + spread);
+  return `$${lo.toLocaleString("en-US")} - $${hi.toLocaleString("en-US")}`;
+}
+
+function selectedCompCount(candidates) {
+  return candidates.filter((c) => c.selected && !c.is_subject_property && parsePrice(c.sale_price)).length;
+}
+
+function legacyCalcPriceRange(candidates) {
   const prices = candidates
     .filter((c) => c.sale_price)
     .map((c) => parseFloat(String(c.sale_price).replace(/[^0-9.]/g, "")))
@@ -343,6 +418,12 @@ export default function CMAGenerator() {
   const [priceAutoFilled, setPriceAutoFilled] = useState(false);
   const [marketNotes, setMarketNotes] = useState("");
   const [marketNotesAutoFilled, setMarketNotesAutoFilled] = useState(false);
+
+  useEffect(() => {
+    if (!priceAutoFilled) return;
+    const suggested = calcPriceRange(comps, subjectDetails);
+    if (suggested) setPriceRange(suggested);
+  }, [comps, subjectDetails, priceAutoFilled]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -380,7 +461,7 @@ export default function CMAGenerator() {
       if (res.data.candidates?.length) {
         const candidates = res.data.candidates.map((c) => ({ ...EMPTY_COMP, ...c }));
         setComps(candidates);
-        const suggested = calcPriceRange(candidates);
+        const suggested = calcPriceRange(candidates, subjectDetails);
         if (suggested) { setPriceRange(suggested); setPriceAutoFilled(true); }
       }
       if (res.data.market_notes) {
@@ -388,7 +469,11 @@ export default function CMAGenerator() {
         setMarketNotesAutoFilled(true);
       }
     } catch (err) {
-      setResearchMessage(err.response?.data?.detail || "Comparable research failed. Please add comps manually.");
+      const detail = err.response?.data?.detail;
+      const message = typeof detail === "string"
+        ? detail
+        : err.response?.data?.message || "Comparable research failed. Please add comps manually.";
+      setResearchMessage(message);
     } finally {
       setResearchLoading(false);
     }
@@ -406,6 +491,10 @@ export default function CMAGenerator() {
 
   const canResearch = subjectProperty.trim().length > 0;
 
+  function handleListingSelect(listing) {
+    if (listing.address) setSubjectProperty(listing.address);
+  }
+
   return (
     <div>
       {/* Loading overlay for generate */}
@@ -417,6 +506,8 @@ export default function CMAGenerator() {
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Generate polished written narratives for Comparative Market Analyses.
       </p>
+
+      <ListingSelector onSelect={handleListingSelect} />
 
       {error && (
         <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm rounded-lg px-4 py-3">
@@ -509,9 +600,23 @@ export default function CMAGenerator() {
 
         {/* Price Range */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-            Recommended List Price Range <span className="text-red-500">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+              Recommended List Price Range <span className="text-red-500">*</span>
+            </label>
+            {selectedCompCount(comps) > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const suggested = calcPriceRange(comps, subjectDetails);
+                  if (suggested) { setPriceRange(suggested); setPriceAutoFilled(true); }
+                }}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                ↻ Recalculate from comps
+              </button>
+            )}
+          </div>
           <input
             required
             value={priceRange}
@@ -521,7 +626,7 @@ export default function CMAGenerator() {
           />
           {priceAutoFilled && (
             <p className="mt-1 text-xs text-green-600 dark:text-green-400">
-              ✓ Auto-filled from comparable sales — adjust as needed
+              ✓ Calculated from {selectedCompCount(comps)} comparable{selectedCompCount(comps) !== 1 ? "s" : ""} — adjust as needed
             </p>
           )}
         </div>
