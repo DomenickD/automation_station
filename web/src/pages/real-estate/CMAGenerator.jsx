@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Icon } from "@iconify/react";
+import AddressSearch from "../../components/AddressSearch";
+import Stepper from "../../components/Stepper";
 import OutputCard from "../../components/OutputCard";
 import ListingSelector from "../../components/ListingSelector";
 import client from "../../api/client";
@@ -26,110 +28,7 @@ const GARAGE_OPTIONS = ["None", "1-Car", "2-Car", "3+ Car"];
 const CONDITION_OPTIONS = ["Original", "Updated", "Fully Renovated", "New Construction"];
 const EXTRA_FEATURES = ["Pool", "Solar Panels", "Hardwood Floors", "Updated Kitchen", "Updated Bathrooms", "Screened Porch", "Fenced Yard", "Waterfront"];
 
-// ──────────────────────── address autocomplete ──────────────────────
-
-function AddressSearch({ value, onChange }) {
-  const [suggestions, setSuggestions] = useState([]);
-  const [open, setOpen] = useState(false);
-  const timerRef = useRef(null);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    function handler(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  function handleInput(e) {
-    const val = e.target.value;
-    onChange(val);
-    clearTimeout(timerRef.current);
-    if (val.length < 4) { setSuggestions([]); setOpen(false); return; }
-    timerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=6&countrycodes=us`,
-          { headers: { "Accept-Language": "en-US,en" } }
-        );
-        const data = await res.json();
-        setSuggestions(data);
-        setOpen(data.length > 0);
-      } catch { /* network unavailable, ignore */ }
-    }, 420);
-  }
-
-  function pick(displayName) {
-    onChange(displayName);
-    setSuggestions([]);
-    setOpen(false);
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <div className="relative">
-        <input
-          value={value}
-          onChange={handleInput}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
-          placeholder="789 Pine St, Austin, TX 78702"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 px-3 py-2 text-sm pr-9"
-        />
-        <Icon icon="mdi:magnify" className="absolute right-2.5 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
-      </div>
-      {open && (
-        <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-          {suggestions.map((s) => (
-            <li key={s.place_id}>
-              <button
-                type="button"
-                onMouseDown={() => pick(s.display_name)}
-                className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs leading-snug border-b border-gray-100 dark:border-gray-700 last:border-0"
-              >
-                {s.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 // ─────────────────── structured property details ─────────────────────
-
-function Stepper({ label, value, min = 0, max = 10, step = 1, onChange }) {
-  const num = parseFloat(value) || 0;
-
-  function handleInput(e) {
-    const raw = e.target.value;
-    // Allow empty string while typing
-    if (raw === "" || raw === ".") { onChange(raw); return; }
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed)) onChange(String(Math.min(max, Math.max(min, parsed))));
-  }
-
-  return (
-    <div>
-      <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">{label}</label>
-      <div className="flex items-center gap-1">
-        <button type="button" onClick={() => onChange(String(Math.max(min, num - step)))}
-          className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">−</button>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={value}
-          onChange={handleInput}
-          placeholder="—"
-          className="w-10 text-center text-sm font-semibold text-gray-800 dark:text-gray-100 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
-        />
-        <button type="button" onClick={() => onChange(String(Math.min(max, num + step)))}
-          className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">+</button>
-      </div>
-    </div>
-  );
-}
 
 function PropertyDetailsForm({ value, onChange }) {
   const [beds, setBeds] = useState("");

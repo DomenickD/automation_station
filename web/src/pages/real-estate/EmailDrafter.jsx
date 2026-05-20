@@ -66,15 +66,6 @@ export default function REEmailDrafter() {
         </div>
       )}
 
-      {result && (
-        <OutputCard
-          output={result.output}
-          documentId={result.document_id}
-          onRegenerate={regenerate}
-          loading={loading}
-        />
-      )}
-
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <GeneratorForm
           key={formKey}
@@ -82,6 +73,7 @@ export default function REEmailDrafter() {
           onSubmit={generate}
           loading={loading}
           initialValues={initialValues}
+          outputSlot={result && <OutputCard output={result.output} documentId={result.document_id} onRegenerate={regenerate} loading={loading} />}
         />
       </div>
     </div>

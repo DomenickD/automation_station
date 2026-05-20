@@ -4,8 +4,42 @@
  * Pass `initialValues` to pre-populate fields (e.g. from a saved listing).
  * Change the `formKey` prop to reset the form with new initialValues.
  */
+import { useState } from "react";
 import { Icon } from "@iconify/react";
-export default function GeneratorForm({ fields, onSubmit, loading, submitLabel = "Generate", initialValues = {} }) {
+import AddressSearch from "./AddressSearch";
+import Stepper from "./Stepper";
+import ChipSelect from "./ChipSelect";
+
+// Fields whose name ends with "address" and have no explicit type get address autocomplete
+function isAddressField(field) {
+  return (field.name === "address" || field.name.endsWith("_address")) && !field.type;
+}
+
+export default function GeneratorForm({ fields, onSubmit, loading, submitLabel = "Generate", initialValues = {}, outputSlot }) {
+  const [addressValues, setAddressValues] = useState(() => {
+    const vals = {};
+    fields.forEach((f) => {
+      if (isAddressField(f)) vals[f.name] = initialValues[f.name] ?? f.defaultValue ?? "";
+    });
+    return vals;
+  });
+
+  const [stepperValues, setStepperValues] = useState(() => {
+    const vals = {};
+    fields.forEach((f) => {
+      if (f.type === "stepper") vals[f.name] = initialValues[f.name] ?? f.defaultValue ?? "";
+    });
+    return vals;
+  });
+
+  const [chipsValues, setChipsValues] = useState(() => {
+    const vals = {};
+    fields.forEach((f) => {
+      if (f.type === "chips") vals[f.name] = initialValues[f.name] ?? f.defaultValue ?? "";
+    });
+    return vals;
+  });
+
   function handleSubmit(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -16,52 +50,128 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
     onSubmit(data);
   }
 
+  // Group consecutive fields that share the same `group` key into rows
+  const fieldRows = [];
+  fields.forEach((field) => {
+    if (field.group) {
+      const last = fieldRows[fieldRows.length - 1];
+      if (last?.group === field.group) {
+        last.fields.push(field);
+      } else {
+        fieldRows.push({ group: field.group, fields: [field] });
+      }
+    } else {
+      fieldRows.push({ group: null, fields: [field] });
+    }
+  });
+
+  function renderFieldInput(field) {
+    const inputCls = "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+    if (isAddressField(field)) {
+      return (
+        <>
+          <AddressSearch
+            value={addressValues[field.name] ?? ""}
+            onChange={(val) => setAddressValues((prev) => ({ ...prev, [field.name]: val }))}
+            placeholder={field.placeholder}
+            required={field.required}
+          />
+          <input type="hidden" name={field.name} value={addressValues[field.name] ?? ""} />
+        </>
+      );
+    }
+    if (field.type === "stepper") {
+      return (
+        <>
+          <Stepper
+            value={stepperValues[field.name] ?? ""}
+            min={field.min}
+            max={field.max}
+            step={field.step}
+            onChange={(val) => setStepperValues((prev) => ({ ...prev, [field.name]: val }))}
+          />
+          <input type="hidden" name={field.name} value={stepperValues[field.name] ?? ""} />
+        </>
+      );
+    }
+    if (field.type === "chips") {
+      return (
+        <>
+          <ChipSelect
+            options={field.options ?? []}
+            value={chipsValues[field.name] ?? ""}
+            onChange={(val) => setChipsValues((prev) => ({ ...prev, [field.name]: val }))}
+            placeholder={field.placeholder}
+          />
+          <input type="hidden" name={field.name} value={chipsValues[field.name] ?? ""} />
+        </>
+      );
+    }
+    if (field.type === "select") {
+      return (
+        <select
+          name={field.name}
+          defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
+          required={field.required}
+          className={inputCls}
+        >
+          {!field.required && <option value="">— Optional —</option>}
+          {field.options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      );
+    }
+    if (field.type === "textarea") {
+      return (
+        <textarea
+          name={field.name}
+          placeholder={field.placeholder}
+          required={field.required}
+          rows={field.rows || 4}
+          defaultValue={initialValues[field.name] ?? ""}
+          className={inputCls}
+        />
+      );
+    }
+    return (
+      <input
+        type={field.type || "text"}
+        name={field.name}
+        placeholder={field.placeholder}
+        required={field.required}
+        defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
+        className={inputCls}
+      />
+    );
+  }
+
+  function renderField(field) {
+    return (
+      <div key={field.name}>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          {field.label}
+          {field.required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        {renderFieldInput(field)}
+        {field.hint && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{field.hint}</p>}
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {fields.map((field) => (
-        <div key={field.name}>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {field.label}
-            {field.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
+      {fieldRows.map((row) =>
+        row.group ? (
+          <div key={row.group} className="grid gap-4" style={{ gridTemplateColumns: `repeat(${row.fields.length}, minmax(0, 1fr))` }}>
+            {row.fields.map((field) => renderField(field))}
+          </div>
+        ) : (
+          renderField(row.fields[0])
+        )
+      )}
 
-          {field.type === "select" ? (
-            <select
-              name={field.name}
-              defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
-              required={field.required}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {!field.required && <option value="">— Optional —</option>}
-              {field.options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          ) : field.type === "textarea" ? (
-            <textarea
-              name={field.name}
-              placeholder={field.placeholder}
-              required={field.required}
-              rows={field.rows || 4}
-              defaultValue={initialValues[field.name] ?? ""}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          ) : (
-            <input
-              type={field.type || "text"}
-              name={field.name}
-              placeholder={field.placeholder}
-              required={field.required}
-              defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          )}
-
-          {field.hint && <p className="text-xs text-gray-500 mt-1">{field.hint}</p>}
-        </div>
-      ))}
+      {outputSlot}
 
       <button
         type="submit"
