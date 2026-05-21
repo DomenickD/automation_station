@@ -46,12 +46,8 @@ export default function ProposalGenerator() {
         </div>
       )}
 
-      {result && (
-        <OutputCard output={result.output} documentId={result.document_id} onRegenerate={regenerate} loading={loading} />
-      )}
-
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <GeneratorForm fields={FIELDS} onSubmit={generate} loading={loading} submitLabel="Generate Proposal" />
+        <GeneratorForm fields={FIELDS} onSubmit={generate} loading={loading} submitLabel="Generate Proposal" outputSlot={result && <OutputCard output={result.output} documentId={result.document_id} onRegenerate={regenerate} loading={loading} />} />
       </div>
     </div>
   );

@@ -26,7 +26,7 @@ export default function ListingSelector({ onSelect }) {
         onChange={handleChange}
         disabled={loading}
         defaultValue=""
-        className="flex-1 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
+        className="flex-1 min-w-0 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 truncate"
       >
         <option value="" disabled>
           {loading ? "Loading…" : "— Select a property —"}

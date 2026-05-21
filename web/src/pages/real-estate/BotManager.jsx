@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import client from "../../api/client";
+import AddressSearch from "../../components/AddressSearch";
+import Stepper from "../../components/Stepper";
 
 export default function BotManager() {
   const [bots, setBots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", address: "", beds_baths: "", price: "", hoa: "", schools: "", showing_instructions: "", seller_notes: "" });
+  const [form, setForm] = useState({ name: "", address: "", beds: "", baths: "", price: "", hoa: "", schools: "", showing_instructions: "", seller_notes: "" });
   const [copied, setCopied] = useState(null);
 
   useEffect(() => { fetchBots(); }, []);
@@ -21,7 +23,7 @@ export default function BotManager() {
         name: form.name || `${form.address} Bot`,
         context_data: {
           property_address: form.address,
-          bedrooms_bathrooms: form.beds_baths,
+          bedrooms_bathrooms: [form.beds && `${form.beds}BR`, form.baths && `${form.baths}BA`].filter(Boolean).join(" / "),
           list_price: form.price,
           hoa_info: form.hoa,
           school_district: form.schools,
@@ -30,7 +32,7 @@ export default function BotManager() {
         },
       });
       setShowForm(false);
-      setForm({ name: "", address: "", beds_baths: "", price: "", hoa: "", schools: "", showing_instructions: "", seller_notes: "" });
+      setForm({ name: "", address: "", beds: "", baths: "", price: "", hoa: "", schools: "", showing_instructions: "", seller_notes: "" });
       await fetchBots();
     } catch (e) {
       alert(e.response?.data?.detail || "Failed to create bot");
@@ -75,8 +77,6 @@ export default function BotManager() {
           <div className="space-y-3">
             {[
               ["name", "Bot Name (optional)", "123 Oak Ave Bot"],
-              ["address", "Property Address", "123 Oak Ave, Austin TX"],
-              ["beds_baths", "Beds / Baths", "3BR / 2BA"],
               ["price", "List Price", "$485,000"],
               ["hoa", "HOA Info", "$150/mo — covers landscaping"],
               ["schools", "School District", "Eanes ISD — top rated"],
@@ -93,6 +93,26 @@ export default function BotManager() {
                 />
               </div>
             ))}
+            <div>
+              <label className="text-sm text-gray-700 font-medium">Property Address</label>
+              <div className="mt-1">
+                <AddressSearch
+                  value={form.address}
+                  onChange={(val) => setForm((prev) => ({ ...prev, address: val }))}
+                  placeholder="123 Oak Ave, Austin TX"
+                />
+              </div>
+            </div>
+            <div className="flex gap-6">
+              <div>
+                <label className="text-sm text-gray-700 font-medium block mb-1">Bedrooms</label>
+                <Stepper value={form.beds} min={1} max={10} step={1} onChange={(val) => setForm((prev) => ({ ...prev, beds: val }))} />
+              </div>
+              <div>
+                <label className="text-sm text-gray-700 font-medium block mb-1">Bathrooms</label>
+                <Stepper value={form.baths} min={1} max={8} step={0.5} onChange={(val) => setForm((prev) => ({ ...prev, baths: val }))} />
+              </div>
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={createBot} disabled={loading} className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-60" style={{ backgroundColor: "var(--brand-color, #2563eb)" }}>
