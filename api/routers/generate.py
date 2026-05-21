@@ -98,6 +98,75 @@ _ADDRESS_KEYS = {
 # For most generic RE modules, the address field is just "address"
 _GENERIC_ADDRESS_KEY = "address"
 
+_SAVED_LISTING_FIELD_ALIASES = {
+    "bedrooms": ["bedrooms", "beds"],
+    "bathrooms": ["bathrooms", "baths"],
+    "sqft": ["sqft", "square_feet"],
+    "lot_size": ["lot_size"],
+    "year_built": ["year_built"],
+    "price_target": ["price_target", "price_range"],
+    "list_price": ["list_price", "price"],
+    "target_buyer": ["target_buyer"],
+    "features": ["features"],
+    "neighborhood": ["neighborhood", "location", "target_areas"],
+    "property_type": ["property_type"],
+    "property_style": ["property_style", "style"],
+    "condition": ["condition"],
+    "garage": ["garage"],
+    "listing_status": ["listing_status", "announcement_type", "lead_type"],
+    "mls_number": ["mls_number"],
+    "city": ["city"],
+    "state": ["state"],
+    "zip_code": ["zip_code", "zip"],
+    "county": ["county"],
+    "showing_instructions": ["showing_instructions"],
+    "open_house": ["open_house"],
+    "closing_pref": ["closing_pref"],
+    "inclusions": ["inclusions"],
+    "exclusions": ["exclusions"],
+    "lockbox": ["lockbox"],
+    "mls_auth": ["mls_auth"],
+    "hoa": ["hoa"],
+    "hoa_fee": ["hoa_fee"],
+    "hoa_covers": ["hoa_covers"],
+    "schools": ["schools"],
+    "flood_zone": ["flood_zone"],
+    "utilities": ["utilities"],
+    "updates": ["updates"],
+    "property_details": ["property_details", "subject_details", "specs"],
+    "market_notes": ["market_notes"],
+    "comparables": ["comparables"],
+    "competitors": ["competitors"],
+    "current_price": ["current_price", "original_price"],
+    "recommended_price": ["recommended_price"],
+    "value_range": ["value_range"],
+    "dom": ["dom"],
+    "showings": ["showings", "showing_count"],
+    "offers": ["offers"],
+    "feedback": ["feedback"],
+    "headline_feature": ["headline_feature"],
+    "ig_handle": ["ig_handle"],
+    "seller_names": ["seller_names", "seller_name"],
+    "buyer_names": ["buyer_names", "buyer_name", "buyer_names"],
+    "seller_name": ["seller_name", "owner_name"],
+    "seller_email": ["seller_email"],
+    "seller_phone": ["seller_phone"],
+    "buyer_name": ["buyer_name"],
+    "buyer_email": ["buyer_email"],
+    "buyer_phone": ["buyer_phone"],
+    "start_date": ["start_date"],
+    "end_date": ["end_date"],
+    "commission": ["commission"],
+    "buyer_commission": ["buyer_commission"],
+    "special_terms": ["special_terms"],
+    "notes": ["notes"],
+    "agent_notes": ["agent_notes"],
+    "raw_context": ["context", "extra_details", "differentiator"],
+}
+
+_INTEGER_FIELDS = {"sqft", "year_built", "dom", "showings"}
+_FLOAT_FIELDS = {"bedrooms", "bathrooms"}
+
 
 async def _upsert_saved_listing(
     module: str,
@@ -123,6 +192,13 @@ async def _upsert_saved_listing(
         v = input_data.get(key)
         return v if v not in (None, "") else None
 
+    def _first_value(keys):
+        for key in keys:
+            value = _val(key)
+            if value is not None:
+                return value
+        return None
+
     def _float(key):
         try:
             v = _val(key)
@@ -137,17 +213,34 @@ async def _upsert_saved_listing(
         except (TypeError, ValueError):
             return None
 
+    def _coerce_field(field, value):
+        if value is None:
+            return None
+        if field in _INTEGER_FIELDS:
+            try:
+                return int(float(value))
+            except (TypeError, ValueError):
+                return None
+        if field in _FLOAT_FIELDS:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+        if isinstance(value, list):
+            return "\n".join(str(item) for item in value)
+        if isinstance(value, dict):
+            return str(value)
+        return value
+
+    updates = {
+        field: _coerce_field(field, _first_value(aliases))
+        for field, aliases in _SAVED_LISTING_FIELD_ALIASES.items()
+    }
+    updates["last_module"] = module
+    updates["last_input_data"] = input_data
+    updates["data_enriched"] = True
+
     if listing:
-        updates = {
-            "bedrooms": _float("bedrooms"),
-            "bathrooms": _float("bathrooms"),
-            "sqft": _int("sqft"),
-            "lot_size": _val("lot_size"),
-            "year_built": _int("year_built"),
-            "price_target": _val("price_target") or _val("price_range"),
-            "features": _val("features"),
-            "neighborhood": _val("neighborhood"),
-        }
         for field, value in updates.items():
             if value is not None:
                 setattr(listing, field, value)
@@ -157,14 +250,7 @@ async def _upsert_saved_listing(
             tenant_id=tenant.id,
             user_id=user.id,
             address=address,
-            bedrooms=_float("bedrooms"),
-            bathrooms=_float("bathrooms"),
-            sqft=_int("sqft"),
-            lot_size=_val("lot_size"),
-            year_built=_int("year_built"),
-            price_target=_val("price_target") or _val("price_range"),
-            features=_val("features"),
-            neighborhood=_val("neighborhood"),
+            **updates,
         )
         db.add(listing)
 

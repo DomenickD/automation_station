@@ -6,6 +6,7 @@ import OutputCard from "../../components/OutputCard";
 import ListingSelector from "../../components/ListingSelector";
 import client from "../../api/client";
 import { useGenerate } from "../../hooks/useGenerate";
+import { savedListingToCmaValues } from "../../utils/savedListingFormValues";
 
 // ─────────────────────────── constants ──────────────────────────────
 
@@ -387,7 +388,11 @@ export default function CMAGenerator() {
   const canResearch = subjectProperty.trim().length > 0;
 
   function handleListingSelect(listing) {
-    if (listing.address) setSubjectProperty(listing.address);
+    const values = savedListingToCmaValues(listing);
+    if (values.subjectProperty) setSubjectProperty(values.subjectProperty);
+    if (values.subjectDetails) setSubjectDetails(values.subjectDetails);
+    if (values.priceRange) setPriceRange(values.priceRange);
+    if (values.marketNotes) setMarketNotes(values.marketNotes);
   }
 
   return (

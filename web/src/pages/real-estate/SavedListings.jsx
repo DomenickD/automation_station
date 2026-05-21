@@ -11,6 +11,10 @@ const CONTACT_FIELDS = [
 ];
 
 const PROPERTY_FIELDS = [
+  { key: "property_type", label: "Property Type" },
+  { key: "property_style", label: "Style" },
+  { key: "condition", label: "Condition" },
+  { key: "garage", label: "Garage" },
   { key: "bedrooms", label: "Bedrooms", type: "number" },
   { key: "bathrooms", label: "Bathrooms", type: "number" },
   { key: "sqft", label: "Square Feet", type: "number" },
@@ -18,6 +22,104 @@ const PROPERTY_FIELDS = [
   { key: "year_built", label: "Year Built", type: "number" },
   { key: "price_target", label: "Price / Target" },
 ];
+
+const EXTRA_SECTIONS = [
+  {
+    title: "Location & Neighborhood",
+    fields: [
+      { key: "city", label: "City" },
+      { key: "state", label: "State" },
+      { key: "zip_code", label: "ZIP" },
+      { key: "county", label: "County" },
+      { key: "neighborhood", label: "Neighborhood Highlights", type: "textarea" },
+      { key: "schools", label: "Schools", type: "textarea" },
+    ],
+  },
+  {
+    title: "Listing Logistics",
+    fields: [
+      { key: "listing_status", label: "Listing Status" },
+      { key: "mls_number", label: "MLS Number" },
+      { key: "showing_instructions", label: "Showing Instructions", type: "textarea" },
+      { key: "open_house", label: "Open House Info", type: "textarea" },
+      { key: "closing_pref", label: "Closing Preference", type: "textarea" },
+      { key: "inclusions", label: "Inclusions", type: "textarea" },
+      { key: "exclusions", label: "Exclusions", type: "textarea" },
+    ],
+  },
+  {
+    title: "HOA & Due Diligence",
+    fields: [
+      { key: "hoa", label: "HOA" },
+      { key: "hoa_fee", label: "HOA Fee" },
+      { key: "hoa_covers", label: "HOA Covers", type: "textarea" },
+      { key: "flood_zone", label: "Flood Zone" },
+      { key: "utilities", label: "Utilities", type: "textarea" },
+      { key: "updates", label: "Recent Updates", type: "textarea" },
+      { key: "property_details", label: "Property Details", type: "textarea" },
+    ],
+  },
+  {
+    title: "Market & Pricing",
+    fields: [
+      { key: "list_price", label: "List Price" },
+      { key: "current_price", label: "Current Price" },
+      { key: "recommended_price", label: "Recommended Price" },
+      { key: "value_range", label: "Value Range" },
+      { key: "target_buyer", label: "Target Buyer" },
+      { key: "dom", label: "Days on Market", type: "number" },
+      { key: "showings", label: "Showings", type: "number" },
+      { key: "offers", label: "Offers", type: "textarea" },
+      { key: "feedback", label: "Buyer Feedback", type: "textarea" },
+      { key: "market_notes", label: "Market Notes", type: "textarea" },
+      { key: "comparables", label: "Comparables", type: "textarea" },
+      { key: "competitors", label: "Competitors", type: "textarea" },
+    ],
+  },
+  {
+    title: "Contract Context",
+    fields: [
+      { key: "seller_names", label: "Seller Names" },
+      { key: "buyer_names", label: "Buyer Names" },
+      { key: "start_date", label: "Start Date" },
+      { key: "end_date", label: "End Date" },
+      { key: "commission", label: "Commission" },
+      { key: "buyer_commission", label: "Buyer Agent Commission" },
+      { key: "lockbox", label: "Lockbox" },
+      { key: "mls_auth", label: "MLS Authorization" },
+      { key: "special_terms", label: "Special Terms", type: "textarea" },
+    ],
+  },
+];
+
+function FieldGrid({ fields, form, update, inputCls }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {fields.map(({ key, label, type }) => (
+        <div key={key} className={type === "textarea" ? "col-span-2" : ""}>
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{label}</label>
+          {type === "textarea" ? (
+            <textarea
+              value={form[key] ?? ""}
+              onChange={(e) => update(key, e.target.value)}
+              rows={2}
+              className={inputCls}
+              placeholder="-"
+            />
+          ) : (
+            <input
+              type={type || "text"}
+              value={form[key] ?? ""}
+              onChange={(e) => update(key, e.target.value)}
+              className={inputCls}
+              placeholder="-"
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function EditModal({ listing, onClose, onSave }) {
   const [form, setForm] = useState({ ...listing });
@@ -42,7 +144,7 @@ function EditModal({ listing, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
           <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate pr-4">{listing.address}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0">✕</button>
@@ -92,6 +194,13 @@ function EditModal({ listing, onClose, onSave }) {
               </div>
             </div>
           </div>
+
+          {EXTRA_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">{section.title}</p>
+              <FieldGrid fields={section.fields} form={form} update={update} inputCls={inputCls} />
+            </div>
+          ))}
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Contact Info</p>
@@ -155,6 +264,7 @@ function ListingCard({ listing, onEdit, onDelete }) {
           <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">{listing.address}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Updated {new Date(listing.updated_at).toLocaleDateString()}
+            {listing.last_module && <span> via {listing.last_module.replace("re_", "").replaceAll("_", " ")}</span>}
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -209,6 +319,21 @@ function ListingCard({ listing, onEdit, onDelete }) {
         {listing.price_target && (
           <span className="text-xs bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800">
             {listing.price_target}
+          </span>
+        )}
+        {listing.property_type && (
+          <span className="text-xs bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+            {listing.property_type}
+          </span>
+        )}
+        {listing.listing_status && (
+          <span className="text-xs bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
+            {listing.listing_status}
+          </span>
+        )}
+        {listing.data_enriched && (
+          <span className="text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+            enriched
           </span>
         )}
       </div>

@@ -3,6 +3,7 @@ import GeneratorForm from "../../components/GeneratorForm";
 import OutputCard from "../../components/OutputCard";
 import ListingSelector from "../../components/ListingSelector";
 import { useGenerate } from "../../hooks/useGenerate";
+import { savedListingToInitialValues } from "../../utils/savedListingFormValues";
 
 export default function GenericGenerator({ module }) {
   const endpoint = module.path.startsWith("/contracts/")
@@ -15,17 +16,7 @@ export default function GenericGenerator({ module }) {
   const hasAddressField = module.fields?.some((f) => f.name === "address");
 
   function handleListingSelect(listing) {
-    setInitialValues({
-      address: listing.address || "",
-      bedrooms: listing.bedrooms != null ? String(listing.bedrooms) : "",
-      bathrooms: listing.bathrooms != null ? String(listing.bathrooms) : "",
-      sqft: listing.sqft != null ? String(listing.sqft) : "",
-      lot_size: listing.lot_size || "",
-      year_built: listing.year_built != null ? String(listing.year_built) : "",
-      features: listing.features || "",
-      neighborhood: listing.neighborhood || "",
-      price_target: listing.price_target || "",
-    });
+    setInitialValues(savedListingToInitialValues(listing, module.fields || []));
     setFormKey((k) => k + 1);
   }
 

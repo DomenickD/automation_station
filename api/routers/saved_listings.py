@@ -14,10 +14,25 @@ from models.saved_listing import SavedListing
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
+SAVED_LISTING_FIELDS = [
+    "address", "bedrooms", "bathrooms", "sqft", "lot_size", "year_built",
+    "price_target", "features", "neighborhood", "property_type", "property_style",
+    "condition", "garage", "list_price", "target_buyer", "listing_status",
+    "mls_number", "city", "state", "zip_code", "county",
+    "showing_instructions", "open_house", "closing_pref", "inclusions",
+    "exclusions", "lockbox", "mls_auth", "hoa", "hoa_fee", "hoa_covers",
+    "schools", "flood_zone", "utilities", "updates", "property_details",
+    "market_notes", "comparables", "competitors", "current_price",
+    "recommended_price", "value_range", "dom", "showings", "offers",
+    "feedback", "headline_feature", "ig_handle", "seller_names", "buyer_names",
+    "start_date", "end_date", "commission", "buyer_commission", "special_terms",
+    "seller_name", "seller_email", "seller_phone", "buyer_name", "buyer_email",
+    "buyer_phone", "notes", "agent_notes", "raw_context", "last_module",
+    "last_input_data", "data_enriched",
+]
 
-class SavedListingResponse(BaseModel):
-    id: str
-    address: str
+
+class SavedListingFields(BaseModel):
     bedrooms: Optional[float] = None
     bathrooms: Optional[float] = None
     sqft: Optional[int] = None
@@ -26,6 +41,52 @@ class SavedListingResponse(BaseModel):
     price_target: Optional[str] = None
     features: Optional[str] = None
     neighborhood: Optional[str] = None
+    property_type: Optional[str] = None
+    property_style: Optional[str] = None
+    condition: Optional[str] = None
+    garage: Optional[str] = None
+    list_price: Optional[str] = None
+    target_buyer: Optional[str] = None
+    listing_status: Optional[str] = None
+    mls_number: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    county: Optional[str] = None
+    showing_instructions: Optional[str] = None
+    open_house: Optional[str] = None
+    closing_pref: Optional[str] = None
+    inclusions: Optional[str] = None
+    exclusions: Optional[str] = None
+    lockbox: Optional[str] = None
+    mls_auth: Optional[str] = None
+    hoa: Optional[str] = None
+    hoa_fee: Optional[str] = None
+    hoa_covers: Optional[str] = None
+    schools: Optional[str] = None
+    flood_zone: Optional[str] = None
+    utilities: Optional[str] = None
+    updates: Optional[str] = None
+    property_details: Optional[str] = None
+    market_notes: Optional[str] = None
+    comparables: Optional[str] = None
+    competitors: Optional[str] = None
+    current_price: Optional[str] = None
+    recommended_price: Optional[str] = None
+    value_range: Optional[str] = None
+    dom: Optional[int] = None
+    showings: Optional[int] = None
+    offers: Optional[str] = None
+    feedback: Optional[str] = None
+    headline_feature: Optional[str] = None
+    ig_handle: Optional[str] = None
+    seller_names: Optional[str] = None
+    buyer_names: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    commission: Optional[str] = None
+    buyer_commission: Optional[str] = None
+    special_terms: Optional[str] = None
     seller_name: Optional[str] = None
     seller_email: Optional[str] = None
     seller_phone: Optional[str] = None
@@ -33,67 +94,32 @@ class SavedListingResponse(BaseModel):
     buyer_email: Optional[str] = None
     buyer_phone: Optional[str] = None
     notes: Optional[str] = None
+    agent_notes: Optional[str] = None
+    raw_context: Optional[str] = None
+    last_module: Optional[str] = None
+    last_input_data: Optional[dict] = None
+    data_enriched: Optional[bool] = None
+
+
+class SavedListingResponse(SavedListingFields):
+    id: str
+    address: str
     created_at: str
     updated_at: str
 
 
-class SavedListingCreate(BaseModel):
+class SavedListingCreate(SavedListingFields):
     address: str
-    bedrooms: Optional[float] = None
-    bathrooms: Optional[float] = None
-    sqft: Optional[int] = None
-    lot_size: Optional[str] = None
-    year_built: Optional[int] = None
-    price_target: Optional[str] = None
-    features: Optional[str] = None
-    neighborhood: Optional[str] = None
-    seller_name: Optional[str] = None
-    seller_email: Optional[str] = None
-    seller_phone: Optional[str] = None
-    buyer_name: Optional[str] = None
-    buyer_email: Optional[str] = None
-    buyer_phone: Optional[str] = None
-    notes: Optional[str] = None
 
 
-class SavedListingUpdate(BaseModel):
+class SavedListingUpdate(SavedListingFields):
     address: Optional[str] = None
-    bedrooms: Optional[float] = None
-    bathrooms: Optional[float] = None
-    sqft: Optional[int] = None
-    lot_size: Optional[str] = None
-    year_built: Optional[int] = None
-    price_target: Optional[str] = None
-    features: Optional[str] = None
-    neighborhood: Optional[str] = None
-    seller_name: Optional[str] = None
-    seller_email: Optional[str] = None
-    seller_phone: Optional[str] = None
-    buyer_name: Optional[str] = None
-    buyer_email: Optional[str] = None
-    buyer_phone: Optional[str] = None
-    notes: Optional[str] = None
 
 
 def _to_response(listing: SavedListing) -> SavedListingResponse:
     return SavedListingResponse(
         id=str(listing.id),
-        address=listing.address,
-        bedrooms=listing.bedrooms,
-        bathrooms=listing.bathrooms,
-        sqft=listing.sqft,
-        lot_size=listing.lot_size,
-        year_built=listing.year_built,
-        price_target=listing.price_target,
-        features=listing.features,
-        neighborhood=listing.neighborhood,
-        seller_name=listing.seller_name,
-        seller_email=listing.seller_email,
-        seller_phone=listing.seller_phone,
-        buyer_name=listing.buyer_name,
-        buyer_email=listing.buyer_email,
-        buyer_phone=listing.buyer_phone,
-        notes=listing.notes,
+        **{field: getattr(listing, field) for field in SAVED_LISTING_FIELDS},
         created_at=listing.created_at.isoformat(),
         updated_at=listing.updated_at.isoformat(),
     )
@@ -140,21 +166,11 @@ async def create_saved_listing(
             tenant_id=tenant.id,
             user_id=user.id,
             address=address,
-            bedrooms=body.bedrooms,
-            bathrooms=body.bathrooms,
-            sqft=body.sqft,
-            lot_size=body.lot_size,
-            year_built=body.year_built,
-            price_target=body.price_target,
-            features=body.features,
-            neighborhood=body.neighborhood,
-            seller_name=body.seller_name,
-            seller_email=body.seller_email,
-            seller_phone=body.seller_phone,
-            buyer_name=body.buyer_name,
-            buyer_email=body.buyer_email,
-            buyer_phone=body.buyer_phone,
-            notes=body.notes,
+            **{
+                field: getattr(body, field)
+                for field in SAVED_LISTING_FIELDS
+                if field != "address"
+            },
         )
         db.add(listing)
 
@@ -214,10 +230,7 @@ async def delete_saved_listing(
 def _merge_fields(listing: SavedListing, data) -> None:
     """Update listing fields only when the incoming value is non-null/non-empty."""
     fields = [
-        "bedrooms", "bathrooms", "sqft", "lot_size", "year_built",
-        "price_target", "features", "neighborhood",
-        "seller_name", "seller_email", "seller_phone",
-        "buyer_name", "buyer_email", "buyer_phone", "notes",
+        field for field in SAVED_LISTING_FIELDS if field != "address"
     ]
     incoming = data.model_dump() if hasattr(data, "model_dump") else vars(data)
     for f in fields:
