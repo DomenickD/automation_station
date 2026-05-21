@@ -95,7 +95,7 @@ wait_for_api() {
 
 wait_for_ollama() {
   local ollama_url="$1"
-  echo -e "${MAGENTA}[DEV]${NC} Waiting for Ollama..."
+  echo -e "${YELLOW}[OLLAMA]${NC} Waiting for Ollama..."
   for _ in $(seq 1 30); do
     if curl -sf "${ollama_url}/api/tags" >/dev/null 2>&1; then
       echo -e "  ${GREEN}Ollama is ready.${NC}"
@@ -111,11 +111,12 @@ wait_for_ollama() {
 ensure_ollama_model() {
   local model="$1"
   if docker exec automation-station-ollama ollama list 2>/dev/null | grep -q "$model"; then
-    echo -e "${MAGENTA}[DEV]${NC} Ollama model ${model} already present."
+    echo -e "  ${GREEN}Ollama model ${model} is already present.${NC}"
     return 0
   fi
-  echo -e "${MAGENTA}[DEV]${NC} Pulling Ollama model ${model}..."
+  echo -e "${YELLOW}[OLLAMA]${NC} Pulling Ollama model ${model} (this may take a few minutes)..."
   docker exec automation-station-ollama ollama pull "$model"
+  echo -e "  ${GREEN}Ollama model ${model} pulled successfully.${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +175,8 @@ else
 
   wait_for_postgres
   wait_for_api
+  wait_for_ollama "$OLLAMA_URL"
+  ensure_ollama_model "$OLLAMA_MODEL"
 
   echo ""
   echo -e "${GREEN}Production-mode containers are running.${NC}"
