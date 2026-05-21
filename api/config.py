@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     ollama_model: str = "gemma4:e4b"
     tavily_api_key: str = ""
 
+    pdf_output_dir: str = "./data/pdfs"
+
     class Config:
         env_file = ".env"
 
@@ -31,3 +33,5 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
+settings = get_settings()

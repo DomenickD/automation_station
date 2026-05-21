@@ -286,21 +286,6 @@ function selectedCompCount(candidates) {
   return candidates.filter((c) => c.selected && !c.is_subject_property && parsePrice(c.sale_price)).length;
 }
 
-function legacyCalcPriceRange(candidates) {
-  const prices = candidates
-    .filter((c) => c.sale_price)
-    .map((c) => parseFloat(String(c.sale_price).replace(/[^0-9.]/g, "")))
-    .filter((p) => !isNaN(p) && p > 10000)
-    .sort((a, b) => a - b);
-
-  if (prices.length === 0) return "";
-
-  const lo = prices[Math.floor(prices.length * 0.25)] ?? prices[0];
-  const hi = prices[Math.ceil(prices.length * 0.75) - 1] ?? prices[prices.length - 1];
-  const round = (n) => Math.round(n / 5000) * 5000;
-  return `$${round(lo).toLocaleString("en-US")} – $${round(hi).toLocaleString("en-US")}`;
-}
-
 // ──────────────────────── main component ────────────────────────────
 
 export default function CMAGenerator() {
@@ -314,6 +299,7 @@ export default function CMAGenerator() {
   const [priceAutoFilled, setPriceAutoFilled] = useState(false);
   const [marketNotes, setMarketNotes] = useState("");
   const [marketNotesAutoFilled, setMarketNotesAutoFilled] = useState(false);
+  const [addressError, setAddressError] = useState("");
 
   useEffect(() => {
     if (!priceAutoFilled) return;
@@ -321,9 +307,18 @@ export default function CMAGenerator() {
     if (suggested) setPriceRange(suggested);
   }, [comps, subjectDetails, priceAutoFilled]);
 
+  function handleAddressChange(val) {
+    setSubjectProperty(val);
+    if (addressError) setAddressError("");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!subjectProperty.trim()) return;
+    if (!/^\d/.test(subjectProperty.trim())) {
+      setAddressError("Address appears to be missing a street number (e.g. 123 Main St). Please complete it before generating.");
+      return;
+    }
 
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd.entries());
@@ -422,10 +417,14 @@ export default function CMAGenerator() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
             Subject Property Address <span className="text-red-500">*</span>
           </label>
-          <AddressSearch value={subjectProperty} onChange={setSubjectProperty} />
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            Start typing for address suggestions, or enter it directly.
-          </p>
+          <AddressSearch value={subjectProperty} onChange={handleAddressChange} />
+          {addressError ? (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400 font-medium">{addressError}</p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              Start typing for address suggestions, or enter it directly.
+            </p>
+          )}
         </div>
 
         {/* Subject Property Details */}

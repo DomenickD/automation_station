@@ -6,6 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useTenant } from "../config/tenant";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "../pages/real-estate/moduleConfigs";
+import { useGenerationQueue } from "../hooks/useGenerationQueue";
 
 function moduleLink(slug) {
   const module = REAL_ESTATE_MODULES.find((item) => item.slug === slug);
@@ -51,6 +52,7 @@ const RE_NAV_GROUPS = [
     id: "leads",
     label: "Lead Outreach",
     items: [
+      { to: "/re/leads", label: "Chatbot Leads", description: "Monitor leads and chat transcripts captured by property chatbots." },
       moduleLink("expired-outreach"),
       moduleLink("soi-campaign"),
       moduleLink("open-house-followup"),
@@ -69,7 +71,10 @@ const RE_NAV_GROUPS = [
   {
     id: "contracts",
     label: "Contracts",
-    items: CONTRACT_MODULES.map((module) => ({ to: module.path, label: module.label, description: module.description })),
+    items: [
+      { to: "/re/contracts", label: "Contracts List", description: "View and manage listing and buyer broker agreements." },
+      { to: "/re/contracts/new", label: "New Contract", description: "Draft a listing agreement or buyer broker agreement." },
+    ],
   },
 ].map((group) => ({
   ...group,
@@ -193,6 +198,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [dark, setDark] = useDarkMode();
+  const { activeCount } = useGenerationQueue();
 
   const isContracting = tenant?.vertical === "contracting";
   const navItems = isContracting ? CO_NAV : [];
@@ -215,6 +221,18 @@ export default function Layout({ children }) {
             </span>
           )}
         </div>
+
+        {activeCount > 0 && (
+          <div className="mx-3 mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+            </span>
+            <span className="text-xs text-blue-700 dark:text-blue-300 font-medium truncate">
+              {activeCount === 1 ? "Generating…" : `${activeCount} generating…`}
+            </span>
+          </div>
+        )}
 
         <nav className="flex-1 p-3 overflow-y-auto">
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 mb-2">

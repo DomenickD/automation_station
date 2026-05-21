@@ -1,49 +1,32 @@
-import { useEffect, useState } from "react";
-import client from "../api/client";
+import { useCallback } from "react";
+import { useGenerationQueue } from "./useGenerationQueue";
 
 export function useGenerate(endpoint) {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const { enqueue, states } = useGenerationQueue();
+  const state = states[endpoint] || { status: "idle" };
 
-  useEffect(() => {
-    setLoading(false);
-    setResult(null);
-    setError(null);
-  }, [endpoint]);
+  const generate = useCallback(
+    (inputData) => {
+      enqueue(endpoint, endpoint, { input_data: inputData });
+    },
+    [enqueue, endpoint]
+  );
 
-  async function generate(inputData) {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await client.post(endpoint, { input_data: inputData });
-      setResult(res.data);
-      return res.data;
-    } catch (err) {
-      const msg = err.response?.data?.detail || "Generation failed. Please try again.";
-      setError(msg);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function regenerate(documentId, inputData = null) {
-    setLoading(true);
-    setError(null);
-    try {
+  const regenerate = useCallback(
+    (documentId, inputData = null) => {
+      const url = `/documents/${documentId}/regenerate`;
       const payload = inputData ? { input_data: inputData } : {};
-      const res = await client.post(`/documents/${documentId}/regenerate`, payload);
-      setResult(res.data);
-      return res.data;
-    } catch (err) {
-      const msg = err.response?.data?.detail || "Regeneration failed.";
-      setError(msg);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }
+      enqueue(endpoint, url, payload);
+    },
+    [enqueue, endpoint]
+  );
 
-  return { generate, regenerate, loading, result, error, setResult };
+  return {
+    generate,
+    regenerate,
+    loading: state.status === "pending" || state.status === "running",
+    result: state.result || null,
+    error: state.status === "error" ? state.error : null,
+    setResult: () => {},
+  };
 }

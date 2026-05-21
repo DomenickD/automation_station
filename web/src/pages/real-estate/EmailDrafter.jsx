@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import GeneratorForm from "../../components/GeneratorForm";
 import OutputCard from "../../components/OutputCard";
 import ListingSelector from "../../components/ListingSelector";
 import { useGenerate } from "../../hooks/useGenerate";
+import { savedListingToInitialValues } from "../../utils/savedListingFormValues";
 
 const EMAIL_TYPES = [
   { value: "post_showing_buyer", label: "Post-Showing Follow-Up (Buyer)" },
@@ -39,15 +41,14 @@ const FIELDS = [
 ];
 
 export default function REEmailDrafter() {
+  const location = useLocation();
   const { generate, regenerate, loading, result, error } = useGenerate("/generate/re/email");
   const [formKey, setFormKey] = useState(0);
-  const [initialValues, setInitialValues] = useState({});
+  const [initialValues, setInitialValues] = useState(() => location.state || {});
+
 
   function handleListingSelect(listing) {
-    setInitialValues({
-      property_address: listing.address || "",
-      client_name: listing.seller_name || listing.buyer_name || "",
-    });
+    setInitialValues(savedListingToInitialValues(listing, FIELDS));
     setFormKey((k) => k + 1);
   }
 

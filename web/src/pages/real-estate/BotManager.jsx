@@ -59,8 +59,15 @@ export default function BotManager() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Property Chatbots</h1>
-          <p className="text-sm text-gray-500 mt-1">Create 24/7 Q&A bots for your listings.</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Property Chatbots</h1>
+            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              Beta
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Create 24/7 Q&A bots for your listings. <span className="text-amber-600 font-medium">(Note: This feature is currently in Beta and not completely finished)</span>
+          </p>
         </div>
         <button
           onClick={() => setShowForm(true)}

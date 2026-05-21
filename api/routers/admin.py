@@ -1,4 +1,5 @@
 """Super-admin routes for managing tenants and users."""
+import uuid
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -96,7 +97,6 @@ async def create_user(
     user: Annotated[User, Depends(require_role("super_admin"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    import uuid
     new_user = User(
         tenant_id=uuid.UUID(body.tenant_id),
         email=body.email,

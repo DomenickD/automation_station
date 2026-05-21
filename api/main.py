@@ -1,8 +1,10 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from config import get_settings
-from routers import auth, generate, documents, bots, chat, usage, knowledge, admin, saved_listings
+from routers import auth, generate, documents, bots, chat, usage, knowledge, admin, saved_listings, contracts
 
 settings = get_settings()
 
@@ -20,9 +22,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+os.makedirs(settings.pdf_output_dir, exist_ok=True)
+app.mount("/files", StaticFiles(directory=settings.pdf_output_dir), name="files")
+
 app.include_router(auth.router)
 app.include_router(generate.router)
 app.include_router(documents.router)
+app.include_router(contracts.router)
 app.include_router(bots.router)
 app.include_router(chat.router)
 app.include_router(usage.router)

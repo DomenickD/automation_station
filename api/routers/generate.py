@@ -1,5 +1,6 @@
 from typing import Annotated
 import uuid
+import re
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ from models.document import GeneratedDocument
 from models.saved_listing import SavedListing
 from services.claude_service import generate as ai_generate
 from services.comparable_research import research_comparables
+from services.neighborhood_research import research_neighborhood
 from services.prompt_builder import PROMPT_REGISTRY
 
 router = APIRouter(prefix="/generate", tags=["generate"])
@@ -86,7 +88,8 @@ class ComparableResearchResponse(BaseModel):
     market_notes: str = ""
 
 
-_RE_MODULES = set(REAL_ESTATE_MODULE_ROUTES.values()) | {"re_listing", "re_email", "re_cma"}
+_RE_MODULES = set(REAL_ESTATE_MODULE_ROUTES.values())
+_SAVED_LISTING_MODULES = _RE_MODULES | {"contract_listing_agreement"}
 
 # Maps module name → which input_data key holds the property address
 _ADDRESS_KEYS = {
@@ -147,7 +150,7 @@ _SAVED_LISTING_FIELD_ALIASES = {
     "headline_feature": ["headline_feature"],
     "ig_handle": ["ig_handle"],
     "seller_names": ["seller_names", "seller_name"],
-    "buyer_names": ["buyer_names", "buyer_name", "buyer_names"],
+    "buyer_names": ["buyer_names", "buyer_name"],
     "seller_name": ["seller_name", "owner_name"],
     "seller_email": ["seller_email"],
     "seller_phone": ["seller_phone"],
@@ -166,6 +169,57 @@ _SAVED_LISTING_FIELD_ALIASES = {
 
 _INTEGER_FIELDS = {"sqft", "year_built", "dom", "showings"}
 _FLOAT_FIELDS = {"bedrooms", "bathrooms"}
+
+
+def _number_from_match(match: re.Match | None, integer: bool = False):
+    if not match:
+        return None
+    try:
+        value = float(match.group(1).replace(",", ""))
+        return int(value) if integer else value
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_property_specs(text: str | None) -> dict:
+    """Extract structured listing details from compact specs text."""
+    if not text:
+        return {}
+
+    value = str(text)
+    lower = value.lower()
+    parsed = {
+        "bedrooms": _number_from_match(re.search(r"(\d+(?:\.\d+)?)\s*(?:br|bd|bed|beds|bedroom|bedrooms)\b", lower)),
+        "bathrooms": _number_from_match(re.search(r"(\d+(?:\.\d+)?)\s*(?:ba|bath|baths|bathroom|bathrooms)\b", lower)),
+        "sqft": _number_from_match(re.search(r"([\d,]+)\s*(?:sq\.?\s*ft\.?|sqft|square feet)\b", lower), integer=True),
+        "year_built": _number_from_match(re.search(r"(?:built|year built)\D*(\d{4})", lower), integer=True),
+    }
+    slash_specs = re.search(r"\b(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\b", lower)
+    if slash_specs:
+        try:
+            parsed["bedrooms"] = parsed["bedrooms"] or float(slash_specs.group(1))
+            parsed["bathrooms"] = parsed["bathrooms"] or float(slash_specs.group(2))
+        except (TypeError, ValueError):
+            pass
+
+    property_types = ["single family", "condo", "townhouse", "multi-family", "villa", "land"]
+    conditions = ["original", "updated", "fully renovated", "new construction"]
+
+    for option in property_types:
+        if option in lower:
+            parsed["property_type"] = option.title()
+            break
+
+    for option in conditions:
+        if option in lower:
+            parsed["condition"] = option.title()
+            break
+
+    garage = re.search(r"(\d+\+?)[-\s]*(?:car\s*)?garage", lower)
+    if garage:
+        parsed["garage"] = f"{garage.group(1)}-Car"
+
+    return {key: val for key, val in parsed.items() if val not in (None, "")}
 
 
 async def _upsert_saved_listing(
@@ -199,20 +253,6 @@ async def _upsert_saved_listing(
                 return value
         return None
 
-    def _float(key):
-        try:
-            v = _val(key)
-            return float(v) if v is not None else None
-        except (TypeError, ValueError):
-            return None
-
-    def _int(key):
-        try:
-            v = _val(key)
-            return int(float(v)) if v is not None else None
-        except (TypeError, ValueError):
-            return None
-
     def _coerce_field(field, value):
         if value is None:
             return None
@@ -236,6 +276,13 @@ async def _upsert_saved_listing(
         field: _coerce_field(field, _first_value(aliases))
         for field, aliases in _SAVED_LISTING_FIELD_ALIASES.items()
     }
+    spec_text = _first_value(["specs", "subject_details", "property_details", "details"])
+    for field, value in _parse_property_specs(spec_text).items():
+        if updates.get(field) is None:
+            updates[field] = value
+    if spec_text and updates.get("property_details") is None:
+        updates["property_details"] = spec_text
+
     updates["last_module"] = module
     updates["last_input_data"] = input_data
     updates["data_enriched"] = True
@@ -276,7 +323,7 @@ async def _run_generation(
     )
     db.add(doc)
 
-    if module in _RE_MODULES:
+    if module in _SAVED_LISTING_MODULES:
         await _upsert_saved_listing(module, body.input_data, user, tenant, db)
 
     await db.commit()
@@ -340,6 +387,35 @@ async def re_cma_research(
             message=f"Comparable research could not complete: {exc}",
             market_notes="",
         )
+
+
+class NeighborhoodResearchRequest(BaseModel):
+    address: str = ""
+    neighborhood: str = ""
+    location: str = ""
+
+
+@router.post("/re/neighborhood/research")
+async def re_neighborhood_research(
+    body: NeighborhoodResearchRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+):
+    try:
+        return await research_neighborhood(
+            address=body.address,
+            neighborhood=body.neighborhood,
+            location=body.location,
+        )
+    except Exception as exc:
+        return {
+            "neighborhood": body.neighborhood,
+            "location": body.location,
+            "property_type": "",
+            "price_range": "",
+            "agent_notes": "",
+            "message": f"Research could not complete: {exc}",
+        }
 
 
 @router.post("/re/{module_slug}", response_model=GenerateResponse)

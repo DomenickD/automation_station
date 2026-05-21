@@ -192,3 +192,41 @@ async def list_leads(
         )
         for s in sessions
     ]
+
+
+class SessionDetailOut(BaseModel):
+    id: str
+    visitor_name: str | None
+    visitor_email: str | None
+    visitor_phone: str | None
+    messages: list
+    lead_captured: bool
+    created_at: str
+
+
+@router.get("/sessions/{session_id}", response_model=SessionDetailOut)
+async def get_session(
+    session_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == uuid.UUID(session_id),
+            ChatSession.tenant_id == tenant.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return SessionDetailOut(
+        id=str(session.id),
+        visitor_name=session.visitor_name,
+        visitor_email=session.visitor_email,
+        visitor_phone=session.visitor_phone,
+        messages=session.messages or [],
+        lead_captured=session.lead_captured,
+        created_at=session.created_at.isoformat(),
+    )
+

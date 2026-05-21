@@ -19,4 +19,3 @@ async def track_usage(
         tokens_used=tokens,
     )
     db.add(event)
-    await db.commit()

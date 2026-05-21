@@ -5,6 +5,7 @@ from .chat import ChatSession, BotConfig
 from .knowledge import KnowledgeDocument
 from .usage import UsageEvent
 from .saved_listing import SavedListing
+from .contract import Contract
 
 __all__ = [
     "Tenant",
@@ -15,4 +16,5 @@ __all__ = [
     "KnowledgeDocument",
     "UsageEvent",
     "SavedListing",
+    "Contract",
 ]

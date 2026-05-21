@@ -134,3 +134,52 @@ async def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
     await db.delete(doc)
     await db.commit()
+
+
+from fastapi.responses import FileResponse
+import os
+from services.pdf_service import generate_document_pdf
+from config import settings
+
+@router.get("/{doc_id}/pdf")
+async def get_document_pdf(
+    doc_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(GeneratedDocument).where(
+            GeneratedDocument.id == uuid.UUID(doc_id),
+            GeneratedDocument.tenant_id == tenant.id,
+        )
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    title_str = doc.module.replace("re_", "").replace("co_", "").replace("_", " ").replace("-", " ").title()
+    if doc.input_data and "address" in doc.input_data:
+        title_str += f" - {doc.input_data['address']}"
+    elif doc.input_data and "subject_property" in doc.input_data:
+        title_str += f" - {doc.input_data['subject_property']}"
+
+    from routers.contracts import parse_markdown_sections
+    sections = parse_markdown_sections(doc.output_text)
+
+    pdf_filename = f"doc_{doc.id}.pdf"
+    pdf_path = os.path.join(settings.pdf_output_dir, pdf_filename)
+    
+    generate_document_pdf(
+        title=title_str,
+        content_sections=sections,
+        tenant=tenant,
+        output_filename=pdf_filename
+    )
+    
+    return FileResponse(
+        path=pdf_path,
+        media_type="application/pdf",
+        filename=f"{title_str.replace(' ', '_')}.pdf"
+    )
+

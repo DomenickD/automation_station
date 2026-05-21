@@ -52,7 +52,10 @@ def _sqft(text: str) -> str:
 
 def _sqft_value(text: str) -> int | None:
     sqft = _sqft(text or "")
-    return int(sqft) if sqft.isdigit() else None
+    try:
+        return int(sqft)
+    except (ValueError, TypeError):
+        return None
 
 
 _MONTHS = {

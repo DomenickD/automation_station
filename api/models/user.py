@@ -20,6 +20,7 @@ class User(Base):
     tenant = relationship("Tenant", back_populates="users")
     documents = relationship("GeneratedDocument", back_populates="user")
     usage_events = relationship("UsageEvent", back_populates="user")
+    contracts = relationship("Contract", back_populates="user")
 
     __table_args__ = (
         __import__("sqlalchemy").UniqueConstraint("tenant_id", "email", name="uq_users_tenant_email"),

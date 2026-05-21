@@ -134,6 +134,28 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
         />
       );
     }
+    if (field.type === "combobox") {
+      return (
+        <>
+          <input
+            type="text"
+            list={`${field.name}-datalist`}
+            name={field.name}
+            placeholder={field.placeholder}
+            required={field.required}
+            defaultValue={initialValues[field.name] ?? field.defaultValue ?? ""}
+            className={inputCls}
+          />
+          <datalist id={`${field.name}-datalist`}>
+            {(field.options || []).map((opt) => {
+              const optVal = typeof opt === "string" ? opt : opt.value;
+              const optLabel = typeof opt === "string" ? opt : opt.label;
+              return <option key={optVal} value={optVal}>{optLabel}</option>;
+            })}
+          </datalist>
+        </>
+      );
+    }
     return (
       <input
         type={field.type || "text"}

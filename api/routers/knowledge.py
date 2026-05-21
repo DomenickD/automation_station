@@ -53,6 +53,10 @@ async def upload_knowledge(
     db: Annotated[AsyncSession, Depends(get_db)],
     file: UploadFile = File(...),
 ):
+    ALLOWED_TYPES = {"text/plain", "text/markdown", "text/csv", "application/octet-stream"}
+    if file.content_type and file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="Only plain text, markdown, and CSV files are supported.")
+
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large (max 5MB)")

@@ -182,6 +182,7 @@ Contract Date: {contract_date}
 Inspection Period Ends: {inspection_end}
 Appraisal Deadline: {appraisal_date}
 Loan Commitment: {loan_commitment}
+Closing Disclosure Due: {closing_disclosure_due}
 Final Walkthrough: {walkthrough_date}
 Closing Date: {closing_date}""",
     },
@@ -296,7 +297,8 @@ Visitors:
 Staging Recommendation: [specific furniture, layout, style suggestions]
 Buyer Vision Description: [how to describe this room to buyers]
 ---""",
-        "user": """Property Style: {style}
+        "user": """Property Address: {address}
+Property Style: {style}
 Target Buyer: {target_buyer}
 Price Point: {price}
 Rooms:

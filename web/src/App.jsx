@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { TenantProvider } from "./config/tenant";
+import { GenerationQueueProvider } from "./hooks/useGenerationQueue";
 
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
@@ -11,10 +12,18 @@ import ChatEmbed from "./pages/ChatEmbed";
 import ListingGenerator from "./pages/real-estate/ListingGenerator";
 import REEmailDrafter from "./pages/real-estate/EmailDrafter";
 import CMAGenerator from "./pages/real-estate/CMAGenerator";
+import NeighborhoodGenerator from "./pages/real-estate/NeighborhoodGenerator";
 import REBotManager from "./pages/real-estate/BotManager";
 import GenericGenerator from "./pages/real-estate/GenericGenerator";
 import SavedListings from "./pages/real-estate/SavedListings";
+import Leads from "./pages/real-estate/Leads";
 import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "./pages/real-estate/moduleConfigs";
+
+// Contracts
+import ContractList from "./pages/contracts/ContractList";
+import ContractBuilder from "./pages/contracts/ContractBuilder";
+import ContractView from "./pages/contracts/ContractView";
+
 
 // Contracting
 import ProposalGenerator from "./pages/contracting/ProposalGenerator";
@@ -48,8 +57,14 @@ function AppRoutes() {
       <Route path="/re/listing" element={<PrivateRoute><ListingGenerator /></PrivateRoute>} />
       <Route path="/re/email" element={<PrivateRoute><REEmailDrafter /></PrivateRoute>} />
       <Route path="/re/cma" element={<PrivateRoute><CMAGenerator /></PrivateRoute>} />
+      <Route path="/re/neighborhood" element={<PrivateRoute><NeighborhoodGenerator /></PrivateRoute>} />
       <Route path="/re/bots" element={<PrivateRoute><REBotManager /></PrivateRoute>} />
       <Route path="/re/saved-listings" element={<PrivateRoute><SavedListings /></PrivateRoute>} />
+      <Route path="/re/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
+      <Route path="/re/contracts" element={<PrivateRoute><ContractList /></PrivateRoute>} />
+      <Route path="/re/contracts/new" element={<PrivateRoute><ContractBuilder /></PrivateRoute>} />
+      <Route path="/re/contracts/:id" element={<PrivateRoute><ContractView /></PrivateRoute>} />
+
       {REAL_ESTATE_MODULES.map((module) => (
         <Route
           key={module.path}
@@ -88,7 +103,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <TenantProvider>
-          <AppRoutes />
+          <GenerationQueueProvider>
+            <AppRoutes />
+          </GenerationQueueProvider>
         </TenantProvider>
       </AuthProvider>
     </BrowserRouter>

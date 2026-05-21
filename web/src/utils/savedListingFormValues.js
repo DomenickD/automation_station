@@ -21,7 +21,9 @@ const FIELD_ALIASES = {
   property_type: ["property_type"],
   style: ["property_style"],
   condition: ["condition"],
+  garage: ["garage"],
   specs: ["property_details"],
+  subject_details: ["property_details"],
   property_details: ["property_details"],
   details: ["property_details"],
   market_notes: ["market_notes"],
@@ -63,6 +65,9 @@ const FIELD_ALIASES = {
   notes: ["notes", "agent_notes", "raw_context"],
   agent_notes: ["agent_notes", "notes"],
   context: ["raw_context", "notes"],
+  client_name: ["seller_name", "seller_names", "buyer_name", "buyer_names"],
+  home_highlights: ["features", "headline_feature"],
+  key_stats: ["property_details"],
   ig_handle: ["ig_handle"],
 };
 
@@ -74,11 +79,34 @@ function valueFromListing(listing, keys) {
   return "";
 }
 
+function formatNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString() : String(value);
+}
+
+export function formatListingSpecs(listing) {
+  const parts = [];
+  if (valueFromListing(listing, ["bedrooms"])) parts.push(`${listing.bedrooms}BR`);
+  if (valueFromListing(listing, ["bathrooms"])) parts.push(`${listing.bathrooms}BA`);
+  if (valueFromListing(listing, ["sqft"])) parts.push(`${formatNumber(listing.sqft)} sqft`);
+  if (valueFromListing(listing, ["lot_size"])) parts.push(`${listing.lot_size} lot`);
+  if (valueFromListing(listing, ["year_built"])) parts.push(`built ${listing.year_built}`);
+  if (valueFromListing(listing, ["property_type"])) parts.push(listing.property_type);
+  if (valueFromListing(listing, ["garage"])) parts.push(`${listing.garage} garage`);
+  if (valueFromListing(listing, ["condition"])) parts.push(listing.condition);
+  if (valueFromListing(listing, ["features"])) parts.push(listing.features);
+  return parts.join(", ");
+}
+
 export function savedListingToInitialValues(listing, fields = []) {
   const values = {};
   for (const field of fields) {
     const aliases = FIELD_ALIASES[field.name] || [field.name];
-    values[field.name] = valueFromListing(listing, aliases);
+    let value = valueFromListing(listing, aliases);
+    if (!value && ["specs", "subject_details", "key_stats", "property_details", "details"].includes(field.name)) {
+      value = formatListingSpecs(listing);
+    }
+    values[field.name] = value;
   }
   return values;
 }
@@ -87,12 +115,7 @@ export function savedListingToCmaValues(listing) {
   return {
     subjectProperty: valueFromListing(listing, ["address"]),
     subjectDetails: [
-      valueFromListing(listing, ["bedrooms"]) && `${listing.bedrooms}BR`,
-      valueFromListing(listing, ["bathrooms"]) && `${listing.bathrooms}BA`,
-      valueFromListing(listing, ["sqft"]) && `${Number(listing.sqft).toLocaleString()} sqft`,
-      valueFromListing(listing, ["property_type"]),
-      valueFromListing(listing, ["condition"]),
-      valueFromListing(listing, ["features"]),
+      formatListingSpecs(listing),
       valueFromListing(listing, ["property_details"]),
     ].filter(Boolean).join(", "),
     priceRange: valueFromListing(listing, ["price_target", "value_range", "list_price"]),

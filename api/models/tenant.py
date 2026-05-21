@@ -26,3 +26,4 @@ class Tenant(Base):
     bot_configs = relationship("BotConfig", back_populates="tenant", cascade="all, delete-orphan")
     knowledge_docs = relationship("KnowledgeDocument", back_populates="tenant", cascade="all, delete-orphan")
     usage_events = relationship("UsageEvent", back_populates="tenant", cascade="all, delete-orphan")
+    contracts = relationship("Contract", back_populates="tenant", cascade="all, delete-orphan")

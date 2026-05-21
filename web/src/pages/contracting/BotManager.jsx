@@ -56,8 +56,15 @@ export default function COBotManager() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Service FAQ Chatbot</h1>
-          <p className="text-sm text-gray-500 mt-1">Deploy a customer-facing bot to your website.</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Service FAQ Chatbot</h1>
+            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              Beta
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Deploy a customer-facing bot to your website. <span className="text-amber-600 font-medium">(Note: This feature is currently in Beta and not completely finished)</span>
+          </p>
         </div>
         <button onClick={() => setShowForm(true)} className="px-4 py-2 text-sm text-white font-medium rounded-lg" style={{ backgroundColor: "var(--brand-color, #2563eb)" }}>
           + New Bot

@@ -9,6 +9,7 @@ nothing else in the codebase needs to know which backend is active.
 """
 import httpx
 import anthropic
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_settings
@@ -20,19 +21,26 @@ settings = get_settings()
 
 # ── Anthropic (production) ────────────────────────────────────────────────────
 
-def _anthropic_client(tenant: Tenant) -> anthropic.Anthropic:
+def _anthropic_client(tenant: Tenant) -> anthropic.AsyncAnthropic:
     api_key = tenant.api_key or settings.anthropic_api_key
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.AsyncAnthropic(api_key=api_key)
 
 
 async def _claude_generate(system_prompt: str, user_prompt: str, tenant: Tenant, max_tokens: int) -> tuple[str, int]:
     client = _anthropic_client(tenant)
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    try:
+        response = await client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+    except anthropic.RateLimitError:
+        raise HTTPException(status_code=429, detail="AI rate limit reached. Please try again in a moment.")
+    except anthropic.AuthenticationError:
+        raise HTTPException(status_code=502, detail="AI service configuration error.")
+    except anthropic.APIError as e:
+        raise HTTPException(status_code=502, detail=f"AI service error: {e}")
     text = response.content[0].text
     tokens = response.usage.input_tokens + response.usage.output_tokens
     return text, tokens
@@ -40,12 +48,19 @@ async def _claude_generate(system_prompt: str, user_prompt: str, tenant: Tenant,
 
 async def _claude_chat(messages: list[dict], system_prompt: str, tenant: Tenant) -> tuple[str, int]:
     client = _anthropic_client(tenant)
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
-        system=system_prompt,
-        messages=messages,
-    )
+    try:
+        response = await client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            system=system_prompt,
+            messages=messages,
+        )
+    except anthropic.RateLimitError:
+        raise HTTPException(status_code=429, detail="AI rate limit reached. Please try again in a moment.")
+    except anthropic.AuthenticationError:
+        raise HTTPException(status_code=502, detail="AI service configuration error.")
+    except anthropic.APIError as e:
+        raise HTTPException(status_code=502, detail=f"AI service error: {e}")
     tokens = response.usage.input_tokens + response.usage.output_tokens
     return response.content[0].text, tokens
 
@@ -60,7 +75,7 @@ async def _ollama_chat_api(ollama_messages: list[dict], max_tokens: int) -> tupl
         "stream": False,
         "options": {"num_predict": max_tokens},
     }
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=300.0) as client:
         resp = await client.post(f"{settings.ollama_url}/api/chat", json=payload)
         resp.raise_for_status()
         data = resp.json()
