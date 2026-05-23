@@ -229,11 +229,11 @@ async def _upsert_saved_listing(
     user: User,
     tenant: Tenant,
     db: AsyncSession,
-) -> None:
+) -> "SavedListing | None":
     address_key = _ADDRESS_KEYS.get(module, _GENERIC_ADDRESS_KEY)
     address = (input_data.get(address_key) or "").strip()
     if not address:
-        return
+        return None
 
     existing = await db.execute(
         select(SavedListing).where(
@@ -302,6 +302,8 @@ async def _upsert_saved_listing(
         )
         db.add(listing)
 
+    return listing
+
 
 async def _run_generation(
     module: str,
@@ -313,6 +315,12 @@ async def _run_generation(
 ) -> GenerateResponse:
     result = await ai_generate(module, body.input_data, tenant, user.id, db)
 
+    saved_listing = None
+    if module in _SAVED_LISTING_MODULES:
+        saved_listing = await _upsert_saved_listing(module, body.input_data, user, tenant, db)
+        if saved_listing and saved_listing.id is None:
+            await db.flush()  # ensure listing gets an ID before linking
+
     doc = GeneratedDocument(
         tenant_id=tenant.id,
         user_id=user.id,
@@ -321,11 +329,9 @@ async def _run_generation(
         output_text=result["output"],
         tokens_used=result["tokens_used"],
         parent_id=uuid.UUID(parent_id) if parent_id else None,
+        saved_listing_id=saved_listing.id if saved_listing else None,
     )
     db.add(doc)
-
-    if module in _SAVED_LISTING_MODULES:
-        await _upsert_saved_listing(module, body.input_data, user, tenant, db)
 
     await db.commit()
     await db.refresh(doc)

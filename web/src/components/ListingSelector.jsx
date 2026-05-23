@@ -1,20 +1,35 @@
 import { useSavedListings } from "../hooks/useSavedListings";
 import { Icon } from "@iconify/react";
+import client from "../api/client";
 
 /**
  * Renders a "Load Saved Listing" bar above a form.
  * onSelect(listing) is called with the full listing object when the user picks one.
+ * module (optional): DB module key e.g. "re_listing". When provided along with onDocLoad,
+ * fetches the most recent document for that listing+module and calls onDocLoad(doc).
  */
-export default function ListingSelector({ onSelect }) {
+export default function ListingSelector({ onSelect, module, onDocLoad }) {
   const { listings, loading } = useSavedListings();
 
   if (!loading && listings.length === 0) return null;
 
-  function handleChange(e) {
+  async function handleChange(e) {
     const id = e.target.value;
     if (!id) return;
     const listing = listings.find((l) => l.id === id);
-    if (listing) onSelect(listing);
+    if (listing) {
+      onSelect(listing);
+      if (module && onDocLoad) {
+        try {
+          const res = await client.get(`/listings/${id}/documents?module=${module}&limit=1`);
+          if (res.data.length > 0) {
+            onDocLoad(res.data[0]);
+          }
+        } catch {
+          // silently ignore — listing doc fetch is best-effort
+        }
+      }
+    }
     e.target.value = "";
   }
 

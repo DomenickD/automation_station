@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useGenerationQueue } from "./useGenerationQueue";
 
 export function useGenerate(endpoint) {
-  const { enqueue, states } = useGenerationQueue();
+  const { enqueue, states, patch } = useGenerationQueue();
   const state = states[endpoint] || { status: "idle" };
 
   const generate = useCallback(
@@ -21,12 +21,19 @@ export function useGenerate(endpoint) {
     [enqueue, endpoint]
   );
 
+  const setResult = useCallback(
+    (result) => {
+      patch(endpoint, { status: "done", result, error: null });
+    },
+    [patch, endpoint]
+  );
+
   return {
     generate,
     regenerate,
     loading: state.status === "pending" || state.status === "running",
     result: state.result || null,
     error: state.status === "error" ? state.error : null,
-    setResult: () => {},
+    setResult,
   };
 }

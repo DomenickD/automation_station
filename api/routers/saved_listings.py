@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -11,6 +11,7 @@ from middleware.auth import get_current_user, get_current_tenant
 from models.user import User
 from models.tenant import Tenant
 from models.saved_listing import SavedListing
+from models.document import GeneratedDocument
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -237,3 +238,49 @@ def _merge_fields(listing: SavedListing, data) -> None:
         v = incoming.get(f)
         if v not in (None, ""):
             setattr(listing, f, v)
+
+
+class ListingDocumentOut(BaseModel):
+    id: str
+    module: str
+    output_text: str
+    tokens_used: int | None
+    created_at: str
+
+
+@router.get("/{listing_id}/documents", response_model=list[ListingDocumentOut])
+async def get_listing_documents(
+    listing_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    module: str | None = None,
+    limit: int = 50,
+):
+    listing = await db.get(SavedListing, uuid.UUID(listing_id))
+    if not listing or listing.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    q = (
+        select(GeneratedDocument)
+        .where(
+            GeneratedDocument.saved_listing_id == uuid.UUID(listing_id),
+            GeneratedDocument.tenant_id == tenant.id,
+        )
+        .order_by(desc(GeneratedDocument.created_at))
+        .limit(limit)
+    )
+    if module:
+        q = q.where(GeneratedDocument.module == module)
+
+    docs = (await db.execute(q)).scalars().all()
+    return [
+        ListingDocumentOut(
+            id=str(d.id),
+            module=d.module,
+            output_text=d.output_text,
+            tokens_used=d.tokens_used,
+            created_at=d.created_at.isoformat(),
+        )
+        for d in docs
+    ]

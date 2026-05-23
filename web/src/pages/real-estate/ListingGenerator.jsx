@@ -47,7 +47,7 @@ const FIELDS = [
 ];
 
 export default function ListingGenerator() {
-  const { generate, regenerate, loading, result, error } = useGenerate("/generate/re/listing");
+  const { generate, regenerate, loading, result, error, setResult } = useGenerate("/generate/re/listing");
   const [formKey, setFormKey] = useState(0);
   const [initialValues, setInitialValues] = useState({});
 
@@ -63,7 +63,11 @@ export default function ListingGenerator() {
         Generate MLS descriptions, marketing copy, social captions, and email teasers from property details.
       </p>
 
-      <ListingSelector onSelect={handleListingSelect} />
+      <ListingSelector
+        onSelect={handleListingSelect}
+        module="re_listing"
+        onDocLoad={(doc) => setResult({ document_id: doc.id, output: doc.output_text, tokens_used: doc.tokens_used })}
+      />
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
