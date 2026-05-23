@@ -6,6 +6,7 @@ const MODULE_LABELS = {
   re_listing: "Listing Description",
   re_email: "RE Email",
   re_cma: "CMA Narrative",
+  re_rpr: "Full RPR Report",
   co_proposal: "Proposal",
   co_sow: "Scope of Work",
   co_email: "Contractor Email",

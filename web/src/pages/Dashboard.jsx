@@ -9,6 +9,7 @@ const RE_MODULES = [
   { to: "/re/listing", label: "Listing Generator", desc: "MLS-ready descriptions in 30 seconds" },
   { to: "/re/email", label: "Email Drafter", desc: "Buyer/seller emails for every scenario" },
   { to: "/re/cma", label: "CMA Narrative", desc: "Polished market analysis summaries" },
+  { to: "/re/rpr", label: "Full RPR Report", desc: "One-stop property resource packet" },
   { to: "/re/bots", label: "Property Bots", desc: "24/7 Q&A chatbots for listings" },
 ];
 
@@ -105,6 +106,7 @@ function moduleLabel(module) {
     re_listing: "Listing Description",
     re_email: "RE Email",
     re_cma: "CMA Narrative",
+    re_rpr: "Full RPR Report",
     co_proposal: "Proposal",
     co_sow: "Scope of Work",
     co_email: "Contractor Email",

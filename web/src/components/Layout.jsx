@@ -32,6 +32,7 @@ const RE_NAV_GROUPS = [
     label: "Market Prep",
     items: [
       { to: "/re/cma", label: "CMA Narrative", description: "Create a narrative summary for a Comparative Market Analysis report." },
+      moduleLink("rpr"),
       moduleLink("neighborhood"),
       moduleLink("appointment"),
       moduleLink("competitive"),

@@ -10,9 +10,75 @@ import AddressSearch from "./AddressSearch";
 import Stepper from "./Stepper";
 import ChipSelect from "./ChipSelect";
 
+const TIMELINE_AUTO_DATE_FIELDS = [
+  "inspection_end",
+  "appraisal_date",
+  "loan_commitment",
+  "walkthrough_date",
+  "closing_date",
+  "closing_disclosure_due",
+];
+
 // Fields whose name ends with "address" and have no explicit type get address autocomplete
 function isAddressField(field) {
   return (field.name === "address" || field.name.endsWith("_address")) && !field.type;
+}
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatDateOnly(date) {
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addCalendarDays(value, days) {
+  const date = parseDateOnly(value);
+  if (!date) return "";
+  date.setDate(date.getDate() + days);
+  return formatDateOnly(date);
+}
+
+function addDisclosureBusinessDays(value, days) {
+  const date = parseDateOnly(value);
+  if (!date) return "";
+  const direction = days < 0 ? -1 : 1;
+  let remaining = Math.abs(days);
+
+  while (remaining > 0) {
+    date.setDate(date.getDate() + direction);
+    // CFPB timing treats all days except Sundays and federal holidays as
+    // business days. Holidays still need user review.
+    if (date.getDay() !== 0) remaining -= 1;
+  }
+
+  return formatDateOnly(date);
+}
+
+function calculateTimelineDates(contractDate) {
+  const closingDate = addCalendarDays(contractDate, 30);
+  return {
+    inspection_end: addCalendarDays(contractDate, 10),
+    appraisal_date: addCalendarDays(contractDate, 21),
+    loan_commitment: addCalendarDays(contractDate, 25),
+    walkthrough_date: addCalendarDays(closingDate, -1),
+    closing_date: closingDate,
+    closing_disclosure_due: addDisclosureBusinessDays(closingDate, -3),
+  };
+}
+
+function calculateClosingBasedDates(closingDate) {
+  return {
+    walkthrough_date: addCalendarDays(closingDate, -1),
+    closing_disclosure_due: addDisclosureBusinessDays(closingDate, -3),
+  };
 }
 
 export default function GeneratorForm({ fields, onSubmit, loading, submitLabel = "Generate", initialValues = {}, outputSlot }) {
@@ -40,6 +106,15 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
     return vals;
   });
 
+  const [dateValues, setDateValues] = useState(() => {
+    const vals = {};
+    fields.forEach((f) => {
+      if (f.type === "date") vals[f.name] = initialValues[f.name] ?? f.defaultValue ?? "";
+    });
+    return vals;
+  });
+  const [manualDateFields, setManualDateFields] = useState(() => new Set());
+
   function handleSubmit(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -48,6 +123,30 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
       data[key] = value;
     }
     onSubmit(data);
+  }
+
+  function handleDateChange(fieldName, value) {
+    setDateValues((prev) => {
+      const next = { ...prev, [fieldName]: value };
+
+      if (fieldName === "contract_date") {
+        const calculated = calculateTimelineDates(value);
+        TIMELINE_AUTO_DATE_FIELDS.forEach((name) => {
+          if (!manualDateFields.has(name)) next[name] = calculated[name] || "";
+        });
+      } else if (fieldName === "closing_date") {
+        const calculated = calculateClosingBasedDates(value);
+        ["walkthrough_date", "closing_disclosure_due"].forEach((name) => {
+          if (!manualDateFields.has(name)) next[name] = calculated[name] || "";
+        });
+      }
+
+      return next;
+    });
+
+    if (fieldName !== "contract_date") {
+      setManualDateFields((prev) => new Set(prev).add(fieldName));
+    }
   }
 
   // Group consecutive fields that share the same `group` key into rows
@@ -105,6 +204,18 @@ export default function GeneratorForm({ fields, onSubmit, loading, submitLabel =
           />
           <input type="hidden" name={field.name} value={chipsValues[field.name] ?? ""} />
         </>
+      );
+    }
+    if (field.type === "date") {
+      return (
+        <input
+          type="date"
+          name={field.name}
+          required={field.required}
+          value={dateValues[field.name] ?? ""}
+          onChange={(e) => handleDateChange(field.name, e.target.value)}
+          className={inputCls}
+        />
       );
     }
     if (field.type === "select") {

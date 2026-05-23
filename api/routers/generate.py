@@ -24,6 +24,7 @@ REAL_ESTATE_MODULE_ROUTES = {
     "listing": "re_listing",
     "email": "re_email",
     "cma": "re_cma",
+    "rpr": "re_rpr",
     "neighborhood": "re_neighborhood",
     "appointment": "re_appointment",
     "competitive": "re_competitive",

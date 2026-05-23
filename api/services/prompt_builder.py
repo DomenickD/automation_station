@@ -99,6 +99,102 @@ Recommended List Price Range: {price_range}
 Market Trend Notes: {market_notes}
 Seller Situation: {seller_situation}""",
     },
+    "re_rpr": {
+        "role": "Generate a comprehensive RPR-style property resource report for real estate clients",
+        "format": """Return a complete, client-ready property resource report using exactly this structure:
+## REPORT SNAPSHOT
+[Concise summary of the property, report purpose, and strongest takeaways]
+
+## PROPERTY FACTS
+[Address, property type, beds/baths/sqft, lot size, year built, style, condition, notable features]
+
+## VALUATION SUMMARY
+[Estimated value, list/current price, value range, assessed value, tax context, and pricing interpretation]
+
+## MARKET POSITION
+[How the property sits in the local market, demand signals, DOM/showing/offers context, and buyer profile]
+
+## COMPARABLE PROPERTY REVIEW
+[Summarize provided comparables and explain what they imply. Do not invent comparable sales.]
+
+## NEIGHBORHOOD & LOCATION
+[Neighborhood, city/county, schools, amenities, commute/location notes, and lifestyle positioning]
+
+## OWNERSHIP, TAXES & HOA
+[Taxes, assessment, HOA, fee coverage, utilities, flood zone, and due-diligence notes if provided]
+
+## PROPERTY CONDITION & UPDATES
+[Condition, improvements, recent updates, repairs, inclusions/exclusions, and risk items]
+
+## SHOWING & TRANSACTION NOTES
+[Showing instructions, open house notes, closing preference, seller/buyer context, and logistics]
+
+## CLIENT TALKING POINTS
+[Clear bullets an agent can use with a buyer, seller, investor, or relocation client]
+
+## RECOMMENDED NEXT STEPS
+[Practical action plan for the agent and client]""",
+        "user": """Generate a comprehensive RPR-style property resource report.
+
+Important:
+- This is not an official Realtors Property Resource (RPR) export.
+- Only use the data provided below.
+- If data is missing, say what should be verified rather than inventing facts.
+
+Report Purpose: {report_purpose}
+Client Name: {client_name}
+Audience: {audience}
+
+Property Address: {address}
+City: {city}
+State: {state}
+ZIP: {zip_code}
+County: {county}
+Property Type: {property_type}
+Property Style: {property_style}
+Bedrooms: {bedrooms}
+Bathrooms: {bathrooms}
+Sqft: {sqft}
+Lot Size: {lot_size}
+Year Built: {year_built}
+Condition: {condition}
+Garage/Parking: {garage}
+Key Features: {features}
+Recent Updates: {updates}
+Property Details: {property_details}
+
+List/Current Price: {current_price}
+Recommended Price: {recommended_price}
+Value Range: {value_range}
+Assessed Value: {assessed_value}
+Annual Taxes: {annual_taxes}
+HOA: {hoa}
+HOA Fee: {hoa_fee}
+HOA Covers: {hoa_covers}
+
+Market Notes: {market_notes}
+Comparables:
+{comparables}
+Competing Listings:
+{competitors}
+Days on Market: {dom}
+Showings: {showings}
+Offers: {offers}
+Buyer Feedback: {feedback}
+Target Buyer: {target_buyer}
+
+Neighborhood: {neighborhood}
+Schools: {schools}
+Utilities: {utilities}
+Flood Zone: {flood_zone}
+
+Showing Instructions: {showing_instructions}
+Open House: {open_house}
+Closing Preference: {closing_pref}
+Inclusions: {inclusions}
+Exclusions: {exclusions}
+Additional Notes: {notes}""",
+    },
     "re_email": {
         "role": "Draft professional real estate emails",
         "format": """Return exactly:
