@@ -7,6 +7,7 @@ export default function BotManager() {
   const [bots, setBots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
   const [form, setForm] = useState({ name: "", address: "", beds: "", baths: "", price: "", hoa: "", schools: "", showing_instructions: "", seller_notes: "" });
   const [copied, setCopied] = useState(null);
 
@@ -69,14 +70,57 @@ export default function BotManager() {
             Create 24/7 Q&A bots for your listings. <span className="text-amber-600 font-medium">(Note: This feature is currently in Beta and not completely finished)</span>
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 text-sm text-white font-medium rounded-lg"
-          style={{ backgroundColor: "var(--brand-color, #2563eb)" }}
-        >
-          + New Bot
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowHowTo((v) => !v)}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+          >
+            {showHowTo ? "Hide How To" : "How do I use this?"}
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 text-sm text-white font-medium rounded-lg"
+            style={{ backgroundColor: "var(--brand-color, #2563eb)" }}
+          >
+            + New Bot
+          </button>
+        </div>
       </div>
+
+      {showHowTo && (
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-blue-950 mb-3">How to use property chatbots</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-1">1. Create</p>
+            <p className="text-sm text-blue-900">
+              Add the listing address, price, showing instructions, HOA details, schools, and seller notes so the bot can answer property questions.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-1">2. Copy</p>
+            <p className="text-sm text-blue-900">
+              After the bot is created, click <span className="font-medium">Copy Embed</span>. That copies a script tag with this bot's private embed token.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-1">3. Embed</p>
+            <p className="text-sm text-blue-900">
+              Paste the copied code into the listing page, website builder custom-code area, or site HTML right before the closing <code className="px-1 py-0.5 rounded bg-white/80 text-blue-950">&lt;/body&gt;</code> tag.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 rounded-lg bg-white/80 border border-blue-100 px-3 py-2">
+          <p className="text-xs font-medium text-blue-800 mb-1">Embed code format</p>
+          <code className="block text-xs text-blue-950 break-all">
+            {'<script src="https://your-domain.com/embed.js" data-token="YOUR_BOT_TOKEN"></script>'}
+          </code>
+        </div>
+        <p className="mt-3 text-xs text-blue-700">
+          For WordPress, Squarespace, Wix, Webflow, or a brokerage-provided site, use the platform's custom HTML, code injection, footer code, or embed-code block. Place one bot snippet only on the page for that specific listing.
+        </p>
+      </div>
+      )}
 
       {showForm && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
