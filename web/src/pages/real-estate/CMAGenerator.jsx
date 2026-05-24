@@ -31,7 +31,7 @@ const EXTRA_FEATURES = ["Pool", "Solar Panels", "Hardwood Floors", "Updated Kitc
 
 // ─────────────────── structured property details ─────────────────────
 
-function PropertyDetailsForm({ value, onChange }) {
+function PropertyDetailsForm({ value, onChange, prefill }) {
   const [beds, setBeds] = useState("");
   const [baths, setBaths] = useState("");
   const [propType, setPropType] = useState("Single Family");
@@ -40,6 +40,18 @@ function PropertyDetailsForm({ value, onChange }) {
   const [sqft, setSqft] = useState("");
   const [condition, setCondition] = useState("Updated");
   const [features, setFeatures] = useState([]);
+
+  useEffect(() => {
+    if (!prefill) return;
+    if (prefill.beds != null) setBeds(String(prefill.beds));
+    if (prefill.baths != null) setBaths(String(prefill.baths));
+    if (prefill.sqft != null) setSqft(String(prefill.sqft));
+    if (prefill.yearBuilt != null) setYearBuilt(String(prefill.yearBuilt));
+    if (prefill.propType) setPropType(prefill.propType);
+    if (prefill.garage) setGarage(prefill.garage);
+    if (prefill.condition) setCondition(prefill.condition);
+    if (prefill.features?.length) setFeatures(prefill.features);
+  }, [prefill]);
 
   function toggleFeature(f) {
     setFeatures((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]);
@@ -208,19 +220,7 @@ function ComparableRow({ comp, index, onChange, onRemove }) {
   );
 }
 
-// ───────────────────────── loading overlay ───────────────────────────
 
-function LoadingOverlay({ message }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 max-w-sm mx-4 text-center">
-        <Icon icon="svg-spinners:ring-resize" className="w-10 h-10 text-blue-600" />
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{message}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">This may take 30–60 seconds</p>
-      </div>
-    </div>
-  );
-}
 
 // ──────────────────── price range from comps ─────────────────────────
 
@@ -300,6 +300,7 @@ export default function CMAGenerator() {
   const [marketNotes, setMarketNotes] = useState("");
   const [marketNotesAutoFilled, setMarketNotesAutoFilled] = useState(false);
   const [addressError, setAddressError] = useState("");
+  const [detailsPrefill, setDetailsPrefill] = useState(null);
 
   useEffect(() => {
     if (!priceAutoFilled) return;
@@ -388,15 +389,24 @@ export default function CMAGenerator() {
     if (values.subjectDetails) setSubjectDetails(values.subjectDetails);
     if (values.priceRange) setPriceRange(values.priceRange);
     if (values.marketNotes) setMarketNotes(values.marketNotes);
+
+    const prefill = {};
+    if (listing.bedrooms != null) prefill.beds = listing.bedrooms;
+    if (listing.bathrooms != null) prefill.baths = listing.bathrooms;
+    if (listing.sqft != null) prefill.sqft = listing.sqft;
+    if (listing.year_built != null) prefill.yearBuilt = listing.year_built;
+    if (listing.property_type && PROPERTY_TYPES.includes(listing.property_type)) prefill.propType = listing.property_type;
+    if (listing.garage && GARAGE_OPTIONS.includes(listing.garage)) prefill.garage = listing.garage;
+    if (listing.condition && CONDITION_OPTIONS.includes(listing.condition)) prefill.condition = listing.condition;
+    if (listing.features) {
+      const matched = listing.features.split(",").map((f) => f.trim()).filter((f) => EXTRA_FEATURES.includes(f));
+      if (matched.length) prefill.features = matched;
+    }
+    setDetailsPrefill({ ...prefill });
   }
 
   return (
     <div>
-      {/* Loading overlay for generate */}
-      {loading && <LoadingOverlay message="Generating your CMA narrative…" />}
-      {/* Loading overlay for research */}
-      {researchLoading && <LoadingOverlay message="Searching for comparable sales…" />}
-
       <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">CMA Narrative Generator</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Generate polished written narratives for Comparative Market Analyses.
@@ -432,7 +442,7 @@ export default function CMAGenerator() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
             Subject Property Details <span className="text-red-500">*</span>
           </label>
-          <PropertyDetailsForm value={subjectDetails} onChange={setSubjectDetails} />
+          <PropertyDetailsForm value={subjectDetails} onChange={setSubjectDetails} prefill={detailsPrefill} />
         </div>
 
         {/* Comparable Sales */}
@@ -452,8 +462,8 @@ export default function CMAGenerator() {
             className="w-full mb-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50"
             style={{ backgroundColor: "var(--brand-color, #2563eb)" }}
           >
-            <Icon icon="mdi:magnify" className="w-4 h-4 shrink-0" />
-            Find Comparable Sales with AI
+            <Icon icon={researchLoading ? "svg-spinners:ring-resize" : "mdi:magnify"} className="w-4 h-4 shrink-0" />
+            {researchLoading ? "Searching for comparables…" : "Find Comparable Sales with AI"}
           </button>
 
           {!canResearch && (
@@ -537,10 +547,11 @@ export default function CMAGenerator() {
         <button
           type="submit"
           disabled={loading || !subjectProperty.trim() || !subjectDetails.trim()}
-          className="w-full py-3 rounded-lg text-white font-semibold text-sm disabled:opacity-50 transition-opacity"
+          className="w-full py-3 rounded-lg text-white font-semibold text-sm disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
           style={{ backgroundColor: "var(--brand-color, #2563eb)" }}
         >
-          Generate CMA Narrative
+          {loading && <Icon icon="svg-spinners:ring-resize" className="w-4 h-4 shrink-0" />}
+          {loading ? "Generating CMA Narrative…" : "Generate CMA Narrative"}
         </button>
       </form>
     </div>

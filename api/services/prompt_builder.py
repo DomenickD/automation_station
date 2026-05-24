@@ -358,7 +358,7 @@ Value to offer: {value_offer}
 Call to action: {cta}""",
     },
     "re_just_listed": {
-        "role": "Generate complete just listed / just sold announcement content suites",
+        "role": "Generate complete announcement content suites tailored to whether the property is Just Listed or Just Sold",
         "format": """Return exactly:
 ## INSTAGRAM CAPTION
 ## FACEBOOK POST
@@ -369,10 +369,17 @@ Call to action: {cta}""",
         "user": """Type: {announcement_type}
 Address: {address}
 Price: {price}
-Key Stats: {specs}
+Property Type: {property_type}
+Bedrooms: {bedrooms}
+Bathrooms: {bathrooms}
+Sq Ft: {sqft}
+Key Features: {features}
 Headline Feature: {headline_feature}
 Agent Instagram Handle: {ig_handle}
-Open House Info: {open_house}""",
+Open House Info: {open_house}
+
+If Type is "Just Listed": emphasize the new listing opportunity, invite buyers to schedule showings, and include open house details if provided.
+If Type is "Just Sold": celebrate the successful sale, highlight results delivered for the seller, and include a call to action for other homeowners thinking of selling.""",
     },
     "re_open_house_followup": {
         "role": "Generate personalized open house follow-up emails for each visitor type",
@@ -404,7 +411,12 @@ Rooms:
         "role": "Generate comprehensive property FAQ documents for showings and open houses",
         "format": "Generate a complete FAQ organized into Property Details, Financials & HOA, Location & Schools, Logistics, and Seller Terms.",
         "user": """Address: {address}
-Property Details: {property_details}
+Property Type: {property_type}
+Bedrooms: {bedrooms}
+Bathrooms: {bathrooms}
+Sq Ft: {sqft}
+Year Built: {year_built}
+Key Features: {features}
 HOA: {hoa}
 HOA Monthly: {hoa_fee}
 What HOA Covers: {hoa_covers}

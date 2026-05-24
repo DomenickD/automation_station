@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 export default function AddressSearch({
   value,
   onChange,
+  onPick,
   placeholder = "123 Main St, Austin, TX 78701",
   required,
 }) {
@@ -68,6 +69,15 @@ export default function AddressSearch({
 
   function pick(s) {
     onChange(buildAddress(s));
+    if (onPick) {
+      const a = s.address || {};
+      onPick({
+        city: a.city || a.town || a.village || "",
+        state: stateAbbr(a.state || ""),
+        zip: a.postcode || "",
+        county: a.county || "",
+      });
+    }
     setSuggestions([]);
     setOpen(false);
   }

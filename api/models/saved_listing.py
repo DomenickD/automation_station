@@ -98,6 +98,7 @@ class SavedListing(Base):
 
     tenant = relationship("Tenant")
     user = relationship("User")
+    documents = relationship("GeneratedDocument", back_populates="saved_listing", order_by="desc(GeneratedDocument.created_at)")
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "address", name="uq_saved_listings_tenant_address"),

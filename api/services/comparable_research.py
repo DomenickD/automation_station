@@ -243,6 +243,9 @@ def _similarity_score(candidate: dict, subject: dict, exact_subject: bool) -> fl
 
 def build_research_queries(subject_property: str, subject_details: str = "") -> list[str]:
     full_address = subject_property.strip()
+    # Build a short exclusion term from the house number + street name
+    street_match = re.match(r"(\d+\s+[\w\s]{1,30?}?)(?:,|\s+\w{2}\s*\d{5}|$)", full_address)
+    exclude_term = f' -"{street_match.group(1).strip()}"' if street_match else ""
     # Extract city/state portion for neighbourhood-level searches
     city_match = re.search(r",\s*([A-Za-z ]+),?\s*[A-Z]{2}\s*\d{5}", full_address)
     location = city_match.group(0).strip(", ") if city_match else full_address
@@ -256,10 +259,10 @@ def build_research_queries(subject_property: str, subject_details: str = "") -> 
         terms.append(f"around ${profile['price']:,.0f}")
     similarity_terms = " ".join(terms)
     return [
-        f"recently sold homes near {full_address} {similarity_terms} sold price square feet",
-        f"Zillow recently sold homes {location} {similarity_terms} sold price sqft",
-        f"Redfin sold homes {location} {similarity_terms} closed price sqft",
-        f"Realtor.com recently sold homes near {full_address} {similarity_terms}",
+        f"recently sold homes near {full_address} {similarity_terms} sold price square feet{exclude_term}",
+        f"Zillow recently sold homes {location} {similarity_terms} sold price sqft{exclude_term}",
+        f"Redfin sold homes {location} {similarity_terms} closed price sqft{exclude_term}",
+        f"Realtor.com recently sold homes near {full_address} {similarity_terms}{exclude_term}",
     ]
 
 
@@ -338,7 +341,8 @@ async def research_comparables(
             continue
 
         # Discard if this is the subject property itself
-        exact_subject = _is_subject_property(address, subject_property)
+        if _is_subject_property(address, subject_property):
+            continue
 
         if not _looks_sold(combined):
             continue
@@ -363,10 +367,10 @@ async def research_comparables(
             "source_title": title,
             "source_url": url,
             "evidence": content[:500],
-            "selected": not exact_subject,
-            "is_subject_property": exact_subject,
+            "selected": True,
+            "is_subject_property": False,
         }
-        candidate["similarity_score"] = _similarity_score(candidate, subject, exact_subject)
+        candidate["similarity_score"] = _similarity_score(candidate, subject, False)
         candidates.append(candidate)
 
     candidates.sort(key=lambda candidate: candidate.get("similarity_score", 0), reverse=True)

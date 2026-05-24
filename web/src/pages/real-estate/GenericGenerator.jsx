@@ -9,9 +9,15 @@ export default function GenericGenerator({ module }) {
   const endpoint = module.path.startsWith("/contracts/")
     ? `/generate/contracts/${module.slug}`
     : `/generate/re/${module.slug}`;
-  const { generate, regenerate, loading, result, error } = useGenerate(endpoint);
+  const { generate, regenerate, loading, result, error, setResult } = useGenerate(endpoint);
   const [formKey, setFormKey] = useState(0);
   const [initialValues, setInitialValues] = useState({});
+
+  // Derive the DB module key from the endpoint for listing-doc lookup
+  const dbModule = endpoint
+    .replace("/generate/re/", "re_")
+    .replace("/generate/contracts/", "contract_")
+    .replace(/-/g, "_");
 
   const hasAddressField = module.fields?.some((f) => f.name === "address");
 
@@ -25,7 +31,13 @@ export default function GenericGenerator({ module }) {
       <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">{module.label}</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{module.description}</p>
 
-      {hasAddressField && <ListingSelector onSelect={handleListingSelect} />}
+      {hasAddressField && (
+        <ListingSelector
+          onSelect={handleListingSelect}
+          module={dbModule}
+          onDocLoad={(doc) => setResult({ document_id: doc.id, output: doc.output_text, tokens_used: doc.tokens_used })}
+        />
+      )}
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">

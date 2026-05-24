@@ -73,7 +73,7 @@ export function GenerationQueueProvider({ children }) {
   ).length;
 
   return (
-    <Ctx.Provider value={{ enqueue, states, clearResult, activeCount }}>
+    <Ctx.Provider value={{ enqueue, states, clearResult, activeCount, patch }}>
       {children}
     </Ctx.Provider>
   );

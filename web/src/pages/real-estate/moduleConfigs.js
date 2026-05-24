@@ -1,3 +1,25 @@
+const FEATURE_OPTIONS = [
+  "Hardwood Floors", "Tile Floors", "New Carpet",
+  "Updated Kitchen", "Granite Countertops", "Quartz Countertops", "Stainless Appliances", "Kitchen Island",
+  "Updated Bathrooms", "Primary Suite", "Walk-in Closet", "Soaking Tub",
+  "Open Floor Plan", "Vaulted Ceilings", "Crown Molding", "Fireplace",
+  "1-Car Garage", "2-Car Garage", "3-Car Garage", "EV Charger",
+  "New Roof", "New HVAC", "Solar Panels", "Smart Home",
+  "Pool", "Hot Tub", "Screened Porch", "Covered Patio", "Fenced Yard",
+  "Waterfront", "Corner Lot", "Cul-de-Sac", "Mountain Views", "City Views",
+];
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: "Single Family", label: "Single Family" },
+  { value: "Condo", label: "Condo" },
+  { value: "Townhouse", label: "Townhouse" },
+  { value: "Multi-Family", label: "Multi-Family" },
+  { value: "Land", label: "Land" },
+  { value: "Commercial", label: "Commercial" },
+  { value: "Mobile Home", label: "Mobile Home" },
+  { value: "Other", label: "Other" },
+];
+
 export const REAL_ESTATE_MODULES = [
   {
     slug: "neighborhood",
@@ -59,7 +81,7 @@ export const REAL_ESTATE_MODULES = [
       { name: "sqft", label: "Sq Ft", type: "number", placeholder: "1850", group: "stats" },
       { name: "lot_size", label: "Lot Size", placeholder: "0.25 ac", group: "stats" },
       { name: "year_built", label: "Year Built", type: "number", placeholder: "2005", group: "stats" },
-      { name: "features", label: "Key Features", type: "textarea", rows: 3, placeholder: "Updated kitchen, pool, screened porch, new HVAC..." },
+      { name: "features", label: "Key Features", type: "chips", options: FEATURE_OPTIONS },
       { name: "updates", label: "Recent Updates / Improvements", type: "textarea", rows: 3 },
       { name: "property_details", label: "Property Details", type: "textarea", rows: 3, placeholder: "Layout, room notes, lot orientation, condition details..." },
       { name: "current_price", label: "List / Current Price", placeholder: "$485,000", group: "pricing" },
@@ -97,7 +119,10 @@ export const REAL_ESTATE_MODULES = [
     description: "Build listing presentation talking points and objection responses.",
     fields: [
       { name: "address", label: "Property Address", required: true, placeholder: "e.g. 123 Oak Ave, Austin TX" },
-      { name: "specs", label: "Bedrooms / Baths / Sqft", required: true, placeholder: "e.g. 4 beds, 3 baths, 2,500 sqft" },
+      { name: "property_type", label: "Property Type", type: "select", options: PROPERTY_TYPE_OPTIONS },
+      { name: "bedrooms", label: "Bedrooms", type: "stepper", min: 0, max: 12, step: 1, group: "bed-bath" },
+      { name: "bathrooms", label: "Bathrooms", type: "stepper", min: 0, max: 10, step: 0.5, group: "bed-bath" },
+      { name: "sqft", label: "Sq Ft", type: "number", placeholder: "2,500", group: "bed-bath" },
       { name: "value_range", label: "Estimated Value Range", placeholder: "e.g. $450,000 - $480,000" },
       { name: "seller_situation", label: "Seller Situation", type: "textarea", rows: 2, placeholder: "e.g. Relocating for work, needs to sell within 60 days, highly motivated" },
       { name: "challenges", label: "Known Challenges", type: "textarea", rows: 2, placeholder: "e.g. Needs new roof, busy street traffic, dated kitchen" },
@@ -111,9 +136,12 @@ export const REAL_ESTATE_MODULES = [
     description: "Compare a subject listing against active competition.",
     fields: [
       { name: "address", label: "Subject Property", required: true, placeholder: "e.g. 123 Oak Ave, Austin TX" },
-      { name: "specs", label: "Subject Specs", required: true, placeholder: "e.g. 4 beds, 3 baths, 2,500 sqft" },
+      { name: "property_type", label: "Property Type", type: "select", options: PROPERTY_TYPE_OPTIONS },
+      { name: "bedrooms", label: "Bedrooms", type: "stepper", min: 0, max: 12, step: 1, group: "bed-bath" },
+      { name: "bathrooms", label: "Bathrooms", type: "stepper", min: 0, max: 10, step: 0.5, group: "bed-bath" },
+      { name: "sqft", label: "Sq Ft", type: "number", placeholder: "2,500", group: "bed-bath" },
       { name: "list_price", label: "List Price", placeholder: "e.g. $475,000" },
-      { name: "features", label: "Key Features", type: "textarea", rows: 3, placeholder: "e.g. Fully remodeled kitchen, quartz countertops, swimming pool, oversized 2-car garage" },
+      { name: "features", label: "Key Features", type: "chips", options: FEATURE_OPTIONS },
       { name: "competitors", label: "Competing Active Listings", type: "textarea", rows: 5, placeholder: "e.g. 145 Oak Ave: $485,000, 4/2.5/2400, 12 DOM, updated kitchen\n110 Pine St: $460,000, 3/2/2100, 45 DOM, needs roof" },
       { name: "market_notes", label: "Market Context", type: "textarea", rows: 2, placeholder: "e.g. Seller's market with low inventory; average days on market is 14 days; homes selling at 99% of list price." },
     ],
@@ -239,7 +267,11 @@ export const REAL_ESTATE_MODULES = [
       { name: "announcement_type", label: "Announcement Type", type: "select", options: [{ value: "Just Listed", label: "Just Listed" }, { value: "Just Sold", label: "Just Sold" }], defaultValue: "Just Listed" },
       { name: "address", label: "Property Address", required: true },
       { name: "price", label: "Price" },
-      { name: "specs", label: "Key Stats" },
+      { name: "property_type", label: "Property Type", type: "select", options: PROPERTY_TYPE_OPTIONS },
+      { name: "bedrooms", label: "Bedrooms", type: "stepper", min: 0, max: 12, step: 1, group: "bed-bath" },
+      { name: "bathrooms", label: "Bathrooms", type: "stepper", min: 0, max: 10, step: 0.5, group: "bed-bath" },
+      { name: "sqft", label: "Sq Ft", type: "number", placeholder: "2,500", group: "bed-bath" },
+      { name: "features", label: "Key Features", type: "chips", options: FEATURE_OPTIONS },
       { name: "headline_feature", label: "Headline Feature" },
       { name: "ig_handle", label: "Instagram Handle" },
       { name: "open_house", label: "Open House Info" },
@@ -295,7 +327,12 @@ export const REAL_ESTATE_MODULES = [
     description: "Generate a showing and open house FAQ document.",
     fields: [
       { name: "address", label: "Property Address", required: true, placeholder: "e.g. 123 Oak Ave, Austin TX" },
-      { name: "property_details", label: "Property Details", type: "textarea", rows: 4, placeholder: "e.g. 4 bedrooms, 3 bathrooms, 2,500 sqft, built in 2015, two-story craftsman style home with private backyard." },
+      { name: "property_type", label: "Property Type", type: "select", options: PROPERTY_TYPE_OPTIONS },
+      { name: "bedrooms", label: "Bedrooms", type: "stepper", min: 0, max: 12, step: 1, group: "bed-bath" },
+      { name: "bathrooms", label: "Bathrooms", type: "stepper", min: 0, max: 10, step: 0.5, group: "bed-bath" },
+      { name: "sqft", label: "Sq Ft", type: "number", placeholder: "2,500", group: "bed-bath" },
+      { name: "year_built", label: "Year Built", type: "number", placeholder: "2015", group: "bed-bath" },
+      { name: "features", label: "Key Features", type: "chips", options: FEATURE_OPTIONS },
       { name: "hoa", label: "HOA", placeholder: "e.g. Oak Ridge Homeowners Association" },
       { name: "hoa_fee", label: "HOA Monthly Fee", placeholder: "e.g. $150 / month" },
       { name: "hoa_covers", label: "What HOA Covers", placeholder: "e.g. Community pool access, front yard landscaping, trash pickup" },

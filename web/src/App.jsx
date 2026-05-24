@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { TenantProvider } from "./config/tenant";
-import { GenerationQueueProvider } from "./hooks/useGenerationQueue";
+import { GenerationQueueProvider, useGenerationQueue } from "./hooks/useGenerationQueue";
+import { SnackbarProvider, useSnackbar } from "./components/Snackbar";
 
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
@@ -38,6 +40,29 @@ import History from "./pages/shared/History";
 import Usage from "./pages/shared/Usage";
 import Settings from "./pages/shared/Settings";
 
+function GenerationWatcher() {
+  const { states } = useGenerationQueue();
+  const { show } = useSnackbar();
+  const prevRef = useRef({});
+
+  useEffect(() => {
+    const prev = prevRef.current;
+    for (const [key, state] of Object.entries(states)) {
+      if (state.status === "done" && prev[key]?.status !== "done") {
+        if (key.startsWith("/generate/re/")) {
+          show("Listing saved with new content.", {
+            label: "Take me to it",
+            to: "/re/saved-listings",
+          });
+        }
+      }
+    }
+    prevRef.current = { ...states };
+  }, [states, show]);
+
+  return null;
+}
+
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-400">Loading...</div>;
@@ -47,7 +72,9 @@ function PrivateRoute({ children }) {
 
 function AppRoutes() {
   return (
-    <Routes>
+    <>
+      <GenerationWatcher />
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/chat/:token" element={<ChatEmbed />} />
 
@@ -94,7 +121,8 @@ function AppRoutes() {
       <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 
@@ -103,9 +131,11 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <TenantProvider>
-          <GenerationQueueProvider>
-            <AppRoutes />
-          </GenerationQueueProvider>
+          <SnackbarProvider>
+            <GenerationQueueProvider>
+              <AppRoutes />
+            </GenerationQueueProvider>
+          </SnackbarProvider>
         </TenantProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -18,9 +18,11 @@ class GeneratedDocument(Base):
     model: Mapped[str] = mapped_column(String(100), default="claude-sonnet-4-6")
     tokens_used: Mapped[int | None] = mapped_column(Integer)
     version: Mapped[int] = mapped_column(Integer, default=1)
+    saved_listing_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("saved_listings.id", ondelete="SET NULL"), nullable=True)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("generated_documents.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant = relationship("Tenant", back_populates="documents")
+    saved_listing = relationship("SavedListing", back_populates="documents")
     user = relationship("User", back_populates="documents")
     children = relationship("GeneratedDocument", backref=__import__("sqlalchemy.orm", fromlist=["backref"]).backref("parent", remote_side=[id]))
