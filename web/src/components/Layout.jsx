@@ -7,6 +7,7 @@ import { useTenant } from "../config/tenant";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "../pages/real-estate/moduleConfigs";
 import { useGenerationQueue } from "../hooks/useGenerationQueue";
+import AppAssistant from "./AppAssistant";
 
 function moduleLink(slug) {
   const module = REAL_ESTATE_MODULES.find((item) => item.slug === slug);
@@ -236,6 +237,8 @@ export default function Layout({ children }) {
         )}
 
         <nav className="flex-1 p-3 overflow-y-auto">
+          <NavItem item={{ to: "/dashboard", label: "Dashboard", description: "Return to the main app dashboard." }} />
+
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 mb-2">
             {tenant?.vertical === "contracting" ? "Contracting Tools" : "Real Estate Tools"}
           </p>
@@ -275,8 +278,15 @@ export default function Layout({ children }) {
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-3xl mx-auto p-6">{children}</div>
+        <div className={`${
+          location.pathname === "/re/calendar" || location.pathname === "/re/pipeline"
+            ? "max-w-7xl"
+            : "max-w-3xl"
+        } w-full mx-auto p-6 transition-all duration-200`}>
+          {children}
+        </div>
       </main>
+      <AppAssistant />
     </div>
   );
 }

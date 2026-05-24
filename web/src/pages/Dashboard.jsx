@@ -10,6 +10,8 @@ const RE_MODULES = [
   { to: "/re/email", label: "Email Drafter", desc: "Buyer/seller emails for every scenario" },
   { to: "/re/cma", label: "CMA Narrative", desc: "Polished market analysis summaries" },
   { to: "/re/rpr", label: "Full RPR Report", desc: "One-stop property resource packet" },
+  { to: "/re/calendar", label: "Appointment Calendar", desc: "Mobile showing and closing tracker" },
+  { to: "/re/pipeline", label: "Process Kanban", desc: "Track buyer and seller deal stages" },
   { to: "/re/bots", label: "Property Bots", desc: "24/7 Q&A chatbots for listings" },
 ];
 

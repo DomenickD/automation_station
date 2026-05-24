@@ -43,6 +43,18 @@ class MessageResponse(BaseModel):
     lead_captured: bool
 
 
+class AppAssistantRequest(BaseModel):
+    message: str
+    path: str
+    page_title: str | None = None
+    page_context: str | None = None
+    history: list[dict] = []
+
+
+class AppAssistantResponse(BaseModel):
+    reply: str
+
+
 class SessionOut(BaseModel):
     id: str
     visitor_name: str | None
@@ -139,6 +151,51 @@ async def send_message(
 
     await db.commit()
     return MessageResponse(reply=reply, lead_captured=session.lead_captured)
+
+
+@router.post("/app-assistant", response_model=AppAssistantResponse)
+async def app_assistant(
+    body: AppAssistantRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    tenant: Annotated[Tenant, Depends(get_current_tenant)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    system_prompt = f"""You are the in-app assistant for {tenant.name}.
+Help authenticated users understand and use the current Automation Station page.
+
+Current page:
+- URL path: {body.path}
+- Page title: {body.page_title or "Unknown"}
+- Page context: {body.page_context or "No additional page context provided."}
+
+Core behavior:
+- Answer questions about the page the user is currently on.
+- If the user is trying to do something that belongs on a different page, explain that clearly and name the correct page/path.
+- Be concise and action-oriented.
+- Do not invent data, saved listings, appointments, leads, contracts, or transaction facts.
+- If a workflow depends on the user's brokerage rules, MLS, local contract, or legal compliance, tell them to verify locally.
+
+Useful real estate pages:
+- /dashboard: return to the main dashboard.
+- /re/listing: listing description generator.
+- /re/rpr: full RPR-style property resource report.
+- /re/cma: CMA narrative generator.
+- /re/timeline: transaction timeline emails.
+- /re/calendar: mobile appointment tracking.
+- /re/pipeline: buying/selling process kanban.
+- /re/bots: property chatbot setup and embed instructions.
+- /re/leads: chatbot leads and transcripts.
+- /re/saved-listings: saved listing records and autofill data.
+- /re/contracts: real estate contracts list.
+"""
+    messages = [
+        {"role": item.get("role", "user"), "content": str(item.get("content", ""))}
+        for item in body.history[-8:]
+        if item.get("content")
+    ]
+    messages.append({"role": "user", "content": body.message})
+    reply = await chat_response(messages, system_prompt, tenant, db)
+    return AppAssistantResponse(reply=reply)
 
 
 @router.get("/sessions", response_model=list[SessionOut])

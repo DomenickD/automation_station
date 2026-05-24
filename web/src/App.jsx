@@ -19,6 +19,8 @@ import REBotManager from "./pages/real-estate/BotManager";
 import GenericGenerator from "./pages/real-estate/GenericGenerator";
 import SavedListings from "./pages/real-estate/SavedListings";
 import Leads from "./pages/real-estate/Leads";
+import CalendarAppointments from "./pages/real-estate/CalendarAppointments";
+import ProcessKanban from "./pages/real-estate/ProcessKanban";
 import { REAL_ESTATE_MODULES, CONTRACT_MODULES } from "./pages/real-estate/moduleConfigs";
 
 // Contracts
@@ -88,6 +90,8 @@ function AppRoutes() {
       <Route path="/re/bots" element={<PrivateRoute><REBotManager /></PrivateRoute>} />
       <Route path="/re/saved-listings" element={<PrivateRoute><SavedListings /></PrivateRoute>} />
       <Route path="/re/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
+      <Route path="/re/calendar" element={<PrivateRoute><CalendarAppointments /></PrivateRoute>} />
+      <Route path="/re/pipeline" element={<PrivateRoute><ProcessKanban /></PrivateRoute>} />
       <Route path="/re/contracts" element={<PrivateRoute><ContractList /></PrivateRoute>} />
       <Route path="/re/contracts/new" element={<PrivateRoute><ContractBuilder /></PrivateRoute>} />
       <Route path="/re/contracts/:id" element={<PrivateRoute><ContractView /></PrivateRoute>} />

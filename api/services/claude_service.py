@@ -73,6 +73,7 @@ async def _ollama_chat_api(ollama_messages: list[dict], max_tokens: int) -> tupl
         "model": settings.ollama_model,
         "messages": ollama_messages,
         "stream": False,
+        "keep_alive": -1,
         "options": {"num_predict": max_tokens},
     }
     async with httpx.AsyncClient(timeout=300.0) as client:

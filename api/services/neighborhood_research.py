@@ -1,4 +1,5 @@
 import re
+import asyncio
 import httpx
 from config import get_settings
 
@@ -191,16 +192,20 @@ async def research_neighborhood(
 
     all_texts: list[str] = []
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for query in market_queries:
-            all_texts.extend(await _tavily_search(client, query))
-        school_texts = await _tavily_search(
-            client,
-            school_query,
-            max_results=7,
-            include_answer=True,
-            search_depth="advanced",
-        )
-        all_texts.extend(school_texts)
+        tasks = [
+            _tavily_search(client, market_queries[0]),
+            _tavily_search(client, market_queries[1]),
+            _tavily_search(
+                client,
+                school_query,
+                max_results=7,
+                include_answer=True,
+                search_depth="advanced",
+            )
+        ]
+        results = await asyncio.gather(*tasks)
+        for r in results:
+            all_texts.extend(r)
 
     if not all_texts:
         return {

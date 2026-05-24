@@ -1,4 +1,5 @@
 import re
+import asyncio
 
 import httpx
 
@@ -303,14 +304,20 @@ async def research_comparables(
     raw_results = []
     search_errors = []
     async with httpx.AsyncClient(timeout=45.0) as client:
-        for query in queries:
+        async def _safe_search(q: str):
             try:
-                raw_results.extend(await _search_query(client, query, max_results))
+                return await _search_query(client, q, max_results)
             except httpx.HTTPStatusError as exc:
                 detail = exc.response.text[:200] if exc.response is not None else str(exc)
                 search_errors.append(f"Search provider returned {exc.response.status_code}: {detail}")
             except httpx.HTTPError as exc:
                 search_errors.append(f"Search provider request failed: {exc}")
+            return []
+
+        tasks = [_safe_search(q) for q in queries]
+        results = await asyncio.gather(*tasks)
+        for r in results:
+            raw_results.extend(r)
 
     if not raw_results and search_errors:
         return {
