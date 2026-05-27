@@ -3,6 +3,21 @@ import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import client from "../api/client";
 
+function stripMarkdown(text) {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/gs, "$1")
+    .replace(/\*(.+?)\*/gs, "$1")
+    .replace(/_{2}(.+?)_{2}/gs, "$1")
+    .replace(/_(.+?)_/gs, "$1")
+    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .trim();
+}
+
 export default function OutputCard({ output, documentId, onRegenerate, loading }) {
   const [copied, setCopied] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -35,14 +50,14 @@ export default function OutputCard({ output, documentId, onRegenerate, loading }
   }
 
   function copyToClipboard() {
-    navigator.clipboard.writeText(editedText).then(() => {
+    navigator.clipboard.writeText(stripMarkdown(editedText)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   }
 
   function downloadTxt() {
-    const blob = new Blob([editedText], { type: "text/plain" });
+    const blob = new Blob([stripMarkdown(editedText)], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

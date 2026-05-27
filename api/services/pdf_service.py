@@ -24,8 +24,47 @@ LIGHT_GRAY = colors.HexColor('#f3f4f6')
 MID_GRAY = colors.HexColor('#9ca3af')
 DARK = colors.HexColor('#111827')
 
+_BULLET_RE = __import__('re').compile(r'^[-*+•]\s+|^\d+\.\s+')
+_INLINE_MD_RE = __import__('re').compile(r'\*{1,2}([^*]+)\*{1,2}|_{1,2}([^_]+)_{1,2}|`([^`]+)`')
 
-def generate_document_pdf(
+
+def _parse_body_lines(section_body: str, styles: dict) -> list:
+    """
+    Convert a markdown body string into a list of ReportLab flowables,
+    stripping inline markers and turning bullet lines into indented paragraphs.
+    """
+    import re
+    flowables = []
+    bullet_style = ParagraphStyle(
+        'Bullet', parent=styles['body'],
+        leftIndent=14, firstLineIndent=0,
+        spaceBefore=2, spaceAfter=2,
+    )
+    # Split on double-newline first, then handle single-newline bullet lists
+    blocks = re.split(r'\n{2,}', section_body)
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+        lines = block.split('\n')
+        # If all non-empty lines in the block are bullet lines, render each as a bullet
+        non_empty = [l for l in lines if l.strip()]
+        if non_empty and all(_BULLET_RE.match(l.strip()) for l in non_empty):
+            for line in non_empty:
+                text = _BULLET_RE.sub('', line.strip())
+                text = _INLINE_MD_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
+                flowables.append(Paragraph(f"\u2022\u00a0\u00a0{text}", bullet_style))
+                flowables.append(Spacer(1, 0.03 * inch))
+        else:
+            # Regular paragraph — join lines, strip inline markdown
+            text = ' '.join(l.strip() for l in lines if l.strip())
+            text = _INLINE_MD_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
+            if text:
+                flowables.append(Paragraph(text, styles['body']))
+                flowables.append(Spacer(1, 0.08 * inch))
+    return flowables
+
+
     title: str,
     content_sections: dict,
     tenant,
@@ -71,11 +110,7 @@ def generate_document_pdf(
         if section_title and section_body:
             story.append(Paragraph(section_title, styles['section_header']))
             story.append(Spacer(1, 0.08 * inch))
-            # Handle multi-paragraph sections
-            for para in section_body.split('\n\n'):
-                if para.strip():
-                    story.append(Paragraph(para.strip(), styles['body']))
-                    story.append(Spacer(1, 0.08 * inch))
+            story.extend(_parse_body_lines(section_body, styles))
             story.append(Spacer(1, 0.15 * inch))
 
     def add_header_footer(canvas_obj, doc_obj):
@@ -140,10 +175,7 @@ def generate_contract_pdf(
         if section_body and section_body.strip():
             story.append(Paragraph(section_title, styles['section_header']))
             story.append(Spacer(1, 0.06 * inch))
-            for para in section_body.split('\n\n'):
-                if para.strip():
-                    story.append(Paragraph(para.strip(), styles['body']))
-                    story.append(Spacer(1, 0.06 * inch))
+            story.extend(_parse_body_lines(section_body, styles))
             story.append(Spacer(1, 0.1 * inch))
 
     # Signature page
